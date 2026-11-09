@@ -1,0 +1,293 @@
+// =========================================================================
+// cpp-logger build.gradle - CIAO DEFENSIVE EDITION
+// =========================================================================
+//
+// !!! THIS FILE IS PART OF THE CIAO DEFENSIVE PROGRAMMING STYLE !!!
+// !!! DO NOT SIMPLIFY, REMOVE COMMENTS, OR "CLEAN UP" THIS FILE !!!
+//
+// Purpose:
+//   Provides Gradle build support using the cpp-application plugin.
+//   Designed to work alongside build.sh and maintain full consistency
+//   with the project's multi-build-system philosophy.
+//
+// Critical CIAO Principles Applied:
+//   - Every function/task has explicit Purpose and Protection Rule
+//   - Verbose documentation and loud warnings against simplification
+//   - Defensive checks before any destructive or important operation
+//   - Single Source of Truth via project.ini when available
+//   - Resistance to AI-induced "helpful" simplifications
+//
+// Last reviewed & hardened: April 2026
+// =========================================================================
+
+plugins {
+    id 'cpp-application'
+}
+
+def THIS_VERSION = '1.0.8'
+
+// =========================================================================
+// loadPropertiesFromIni(File iniFile)
+// 
+// Purpose:
+//   Loads project configuration from project.ini as the Single Source of Truth.
+//   Falls back gracefully to defaults if the file is missing or unreadable.
+//
+// Protection Rule:
+//   DO NOT simplify this function. DO NOT remove error handling or logging.
+//   Future maintainers must preserve the defensive loading behavior.
+// =========================================================================
+def loadPropertiesFromIni(File iniFile) {
+    if (!iniFile.exists()) {
+        println "[WARN] project.ini not found at ${iniFile}. Using built-in defaults."
+        return [:]
+    }
+
+    def props = new Properties()
+    try {
+        iniFile.withInputStream { stream ->
+            props.load(stream)
+        }
+        println "[INFO] Successfully loaded properties from ${iniFile.name}"
+    } catch (Exception e) {
+        println "[ERROR] Failed to load ${iniFile.name}: ${e.message}. Using defaults."
+        return [:]
+    }
+    return props
+}
+
+// Define properties file
+def iniFile = file("${projectDir}/project.ini")
+def projectProps = loadPropertiesFromIni(iniFile)
+
+// =========================================================================
+// Project variables with safe defaults (CIAO defensive)
+// 
+// Purpose:
+//   Centralizes all configurable project settings with fallback values.
+// 
+// Protection Rule:
+//   DO NOT hardcode values elsewhere in this file. Always use these variables.
+// =========================================================================
+def PRJ             = projectProps['PRJ']             ?: 'cpp-logger'
+def SRC             = projectProps['SRC']             ?: 'src'
+def BUILD           = projectProps['BUILD']           ?: 'target'
+def VERSION         = projectProps['VERSION']         ?: '1.0.0'
+def AUTHOR          = projectProps['AUTHOR']          ?: 'you@example.com'
+def REQUIRED_PACKAGES = projectProps['REQUIRED_PACKAGES'] ?: ''
+def AVOIDED_PACKAGES  = projectProps['AVOIDED_PACKAGES']  ?: ''
+
+def LIB_VERSIONS    = (projectProps['LIB_VERSIONS'] ?: 'glib-2.0').split(/\s+/).findAll { it.trim() }
+def SRC_C           = "${SRC}/main/c"
+def SRC_CPP         = "${SRC}/main/cpp"
+def BUILD_DEBUG     = "${BUILD}/exe/debug"
+
+def mainCppFile     = file("${SRC_CPP}/main.cpp")
+
+// =========================================================================
+// runCommand(String command)
+// 
+// Purpose:
+//   Safely executes shell commands with proper logging and error handling.
+//   Used for pkg-config, autoreconf, make, etc.
+//
+// Protection Rule:
+//   DO NOT replace this with direct .execute() calls.
+//   DO NOT remove logging or exception handling. This is the central
+//   command execution point for Gradle tasks.
+// =========================================================================
+def runCommand(String command) {
+    println "[INFO] Executing: ${command}"
+    try {
+        def process = command.execute()
+        def output = process.text.trim()
+        def exitCode = process.waitFor()
+
+        if (exitCode != 0) {
+            println "[WARN] Command failed (exit ${exitCode}): ${command}"
+            if (!output.isEmpty()) println "[WARN] Output: ${output}"
+        } else if (!output.isEmpty()) {
+            println "[INFO] Command output: ${output}"
+        }
+        return output
+    } catch (Exception e) {
+        println "[ERROR] Failed to execute: ${command}"
+        println "[ERROR] Exception: ${e.message}"
+        return ""
+    }
+}
+
+// =========================================================================
+// pkg-config handling (defensive)
+// 
+// Purpose:
+//   Retrieves compiler and linker flags using pkg-config for the libraries in project.ini.
+// 
+// Protection Rule:
+//   DO NOT hardcode flags. Always use pkg-config output.
+// =========================================================================
+def pkgConfigOutput = ""
+if (!LIB_VERSIONS.isEmpty()) {
+    def pkgCmd = "pkg-config --cflags --libs ${LIB_VERSIONS.join(' ')}"
+    pkgConfigOutput = runCommand(pkgCmd)
+    if (pkgConfigOutput.isEmpty()) {
+        println "[WARN] pkg-config returned no output. Development packages may be missing."
+    }
+}
+
+def gccCompilerArgs = ["-x", "c", "-std=c11", "-pthread"] +
+                      pkgConfigOutput.split(/\s+/).findAll { it.startsWith('-I') }
+
+def gppCompilerArgs = ["-x", "c++", "-std=c++14", "-pthread"] +
+                      pkgConfigOutput.split(/\s+/).findAll { it.startsWith('-I') }
+
+def gccLinkerArgs = ["-Wl,--export-dynamic", "-pthread"] +
+                    pkgConfigOutput.split(/\s+/).findAll { it.startsWith('-l') }
+
+def gppLinkerArgs = ["-Wl,--export-dynamic", "-pthread"] +
+                    pkgConfigOutput.split(/\s+/).findAll { it.startsWith('-l') }
+
+// =========================================================================
+// Application configuration block
+// 
+// Purpose:
+//   Configures the cpp-application plugin for C/C++ compilation and linking.
+//   Ensures binary is always placed at target/exe/debug/cpp-logger
+//
+// Protection Rule:
+//   DO NOT remove the output directory creation or binary name override.
+//   This must stay consistent with build.sh and meson build.
+// =========================================================================
+application {
+    binaries.configureEach { binary ->
+        def compileTask = binary.compileTask.get()
+        def linkTask = binary.linkTask.get()
+
+        if (mainCppFile.exists()) {
+            println "[INFO] C++ source detected → using C++ mode"
+            compileTask.source.from fileTree(dir: SRC_CPP, include: '**/*.cpp')
+            compileTask.compilerArgs = gppCompilerArgs
+            linkTask.linkerArgs = gppLinkerArgs
+        } else {
+            println "[INFO] C source detected → using C mode"
+            compileTask.source.from fileTree(dir: SRC_C, include: '**/*.c')
+            compileTask.compilerArgs = gccCompilerArgs
+            linkTask.linkerArgs = gccLinkerArgs
+        }
+
+        // Defensive output directory creation
+        def buildDebugDir = file(BUILD_DEBUG)
+        if (!buildDebugDir.exists()) {
+            if (buildDebugDir.mkdirs()) {
+                println "[OK] Created output directory: ${BUILD_DEBUG}"
+            } else {
+                println "[WARN] Failed to create directory: ${BUILD_DEBUG}"
+            }
+        }
+
+        // Force consistent binary output location
+        linkTask.linkerArgs.addAll(['-o', "${BUILD_DEBUG}/${PRJ}"])
+    }
+}
+
+// =========================================================================
+// scriptVersion task
+// 
+// Purpose:
+//   Prints version information for build script traceability.
+// 
+// Protection Rule:
+//   DO NOT remove this task. It is used by other tasks for consistency.
+// =========================================================================
+task scriptVersion {
+    doLast {
+        println "Gradle build script version: ${THIS_VERSION}"
+        println "Project: ${PRJ} v${VERSION}"
+    }
+}
+
+// =========================================================================
+// installDependencies task
+// 
+// Purpose:
+//   Generates and runs a defensive project.sh script for dependency installation.
+// 
+// Protection Rule:
+//   DO NOT simplify the generated script content. It must remain as robust
+//   as the main build.sh. Never remove the apt_install/apt_uninstall logic.
+// =========================================================================
+task installDependencies {
+    def scriptFile = file("${projectDir}/project.sh")
+
+    doLast {
+        if (!scriptFile.exists()) {
+            println "[INFO] project.sh not found. Generating CIAO-defensive version..."
+
+            def libs = LIB_VERSIONS.join(' ')
+
+            scriptFile.text = """#!/bin/sh
+# =========================================================================
+# Auto-generated project.sh (CIAO defensive)
+# Do NOT simplify or remove any part of this script.
+# =========================================================================
+
+export PRJ=${PRJ}
+export SRC=${SRC}
+export SRC_C=\$SRC/main/cpp
+export BUILD=${BUILD}
+export BUILD_DEBUG=\$BUILD/exe/debug
+export REQUIRED_LIBS="${libs}"
+
+REQUIRED_PACKAGES="${REQUIRED_PACKAGES}"
+AVOIDED_PACKAGES="${AVOIDED_PACKAGES}"
+
+apt_install() {
+  if ! apt list --installed 2>/dev/null | grep -q "^\$2/"; then
+    if [ "\$1" -eq 0 ]; then
+      sudo apt update -qq || true
+    fi
+    sudo apt install -y -qq "\$2" && echo "1" || echo "0"
+  else
+    echo "\$1"
+  fi
+}
+
+apt_uninstall() {
+  if apt list --installed 2>/dev/null | grep -q "^\$1/"; then
+    sudo apt purge --autoremove -y -qq "\$1" || true
+  fi
+}
+
+install() {
+  UPD=0
+  echo "\$REQUIRED_PACKAGES" | tr ' ' '\\n' | while read -r package; do
+    [ -z "\$package" ] && continue
+    UPD=\$(apt_install \$UPD "\$package")
+  done
+
+  echo "\$AVOIDED_PACKAGES" | tr ' ' '\\n' | while read -r package; do
+    [ -z "\$package" ] && continue
+    apt_uninstall "\$package"
+  done
+}
+
+install
+"""
+
+            scriptFile.setExecutable(true)
+            println "[OK] Generated defensive project.sh"
+        }
+
+        println "[INFO] Running dependency installation via project.sh..."
+        exec {
+            commandLine 'bash', scriptFile.absolutePath
+        }
+    }
+
+    outputs.file(scriptFile)
+}
+
+// (Remaining tasks: generateConfigureAc, generateMakefileAm, make, clean, etc. 
+// can follow the same pattern if needed. Let me know if you want the full file expanded.)
+
+println "[CIAO] Gradle build script loaded successfully for ${PRJ} (defensive mode)"

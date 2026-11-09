@@ -1,0 +1,13 @@
+# Nested SSOT aligned with root .gitignore (skill-create-gitignore)
+# Track product law, the product test plan, and filled product checklists.
+# Skills, templates, terminologies, incidents, policies, and housekeeping stay local.
+# Filled checklists are versioned because the operator ordered them with the tests.
+*
+!.gitignore
+!requirements/
+!requirements/**
+!checklists/
+!checklists/**
+checklists/README.md
+!reviews/
+!reviews/**
