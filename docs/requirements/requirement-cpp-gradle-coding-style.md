@@ -133,7 +133,7 @@ Each row is a task the script defines. What the task does to the binary, the hos
 
 | TP-ID | Suite | Status |
 |-------|-------|--------|
-| TP-CPP-GRADLE-STYLE | `tests/test-cpp-builds.sh` | todo |
+| TP-CPP-GRADLE-STYLE | `tests/test-cpp-builds.sh` | pass |
 
 **Matrix:** `docs/reviews/requirement-test-matrix.md`
 **Map:** `docs/reviews/test-plan.md`

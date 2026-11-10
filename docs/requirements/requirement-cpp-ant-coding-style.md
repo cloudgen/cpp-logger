@@ -132,7 +132,7 @@ Target banner. `build` is the sample. The other targets and each `macrodef` use 
 
 | TP-ID | Suite | Status |
 |-------|-------|--------|
-| TP-CPP-ANT-STYLE | `tests/test-cpp-builds.sh` | todo |
+| TP-CPP-ANT-STYLE | `tests/test-cpp-builds.sh` | pass |
 
 **Matrix:** `docs/reviews/requirement-test-matrix.md`
 **Map:** `docs/reviews/test-plan.md`

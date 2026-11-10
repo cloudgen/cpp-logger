@@ -78,6 +78,15 @@ The link line appends `-pthread`.
 |-------|------|
 | TP-CPP-DEPENDENCIES | `pkg-config --exists glib-2.0` succeeds. `build.sh` and `meson.build` both request that module and do not request `gtk+-3.0` or `webkit2gtk-4.1` |
 
+### Design-time verification
+
+| TP-ID | Suite | Status |
+|-------|-------|--------|
+| TP-CPP-DEPENDENCIES | `tests/test-cpp-builds.sh` | pass |
+
+**Matrix:** `docs/reviews/requirement-test-matrix.md`
+**Map:** `docs/reviews/test-plan.md`
+
 ## 5. Protection rule
 
 Future editors must not add GTK, WebKitGTK, Lua, SQLite, or sol2 to this table unless a new Active requirement owns that library, and must not copy the package list back into `requirement-class-software-dev.md`.

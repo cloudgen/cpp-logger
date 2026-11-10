@@ -24,7 +24,7 @@ The tree comes from cpp-template and cpp-gnome-template. The primary language is
 
 | Includes | Excludes |
 |----------|----------|
-| `extern "C"`, comment shape, `logger_*` only, kebab-case and camel-case, quiet and debug accessors | Which files belong in `src/main/cpp` (`requirement-cpp-folder.md`). Gradle banners (`requirement-cpp-gradle-coding-style.md`). Ant banners (`requirement-cpp-ant-coding-style.md`). Meson banners (`requirement-cpp-meson-coding-style.md`) |
+| `extern "C"`, comment shape, the present `logger_*` names, kebab-case and camel-case, quiet and debug accessors | Which files belong in `src/main/cpp` (`requirement-cpp-folder.md`). The class map (`requirement-cpp-oop.md`). Gradle banners (`requirement-cpp-gradle-coding-style.md`). Ant banners (`requirement-cpp-ant-coding-style.md`). Meson banners (`requirement-cpp-meson-coding-style.md`) |
 
 | Surface | What you open | What for |
 |---------|---------------|----------|
@@ -71,7 +71,7 @@ Glossary words, not restated here as a second definition:
 Rules:
 
 1. A C++ type uses upper camel-case. A C++ method or local uses lower camel-case.
-2. An `extern "C"` function stays snake_case so the C linker name matches. The logger surface is that exception: `logger_*`.
+2. An `extern "C"` function stays snake_case so the C linker name matches. The present logger surface is `logger_*`. That surface is not the allowed end state. The class map is `requirement-cpp-oop.md`. A new logging behavior is a method on `Logger` before it is a new `logger_*` function.
 3. A multi-word path segment uses kebab-case. Do not put a camel-case token or a snake_case token in that segment. The directories themselves are cpp-base-path and cpp-log-path, owned by `requirement-cpp-logger-folder.md`. This file does not choose them.
 4. Do not put a hyphen in a C++ identifier. Do not put a capital letter in a kebab-case token.
 5. Do not introduce `ciao_` or `CIAO_` names.
@@ -86,7 +86,7 @@ There is no GTK signal callback in this product. Do not add `g_signal_connect` r
 
 ## C++ linkage (`extern "C"`)
 
-The logger header is included from C++ and keeps C linkage for the logger functions. `logger_log` takes `va_list` by value. The body in `src/main/cpp/logger.cpp` uses `va_copy` before `g_strdup_vprintf`. That body is the sample in `requirement-cpp-logger.md`.
+The logger header is included from C++. It declares `class Logger`. It keeps C linkage for the `logger_*` names, and those names forward to the object `main` constructed. `logger_log` takes `va_list` by value. The body in `src/main/cpp/logger.cpp` uses `va_copy` before `g_strdup_vprintf`. That body is the sample in `requirement-cpp-logger.md`.
 
 Sample code (this project), from `src/main/cpp/logger.h`:
 

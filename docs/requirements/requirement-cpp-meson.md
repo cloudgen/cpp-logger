@@ -49,7 +49,7 @@ This file owns `meson.build`. It follows the host set, the C and C++ flags, the 
 
 The ship-unit files are `src/main/cpp/logger.cpp` and `src/main/cpp/main.cpp`. Both take the C++17 options in rule 4. `requirement-cpp-folder.md` names no `.c` file. A `.c` file that is present under `src/main/c` or `src/main/cpp` joins that same link on the C11 option.
 
-`project()` `version` is `1.1.0`, the same string as `project.ini` `VERSION` and `src/main/cpp/project.h`.
+`project()` `version` is `1.1.1`, the same string as `project.ini` `VERSION` and `src/main/cpp/project.h`.
 
 Generated exports, when `project.sh` is absent:
 
@@ -82,7 +82,7 @@ export SRC_CPP=$SRC/main/cpp
 
 | TP-ID | Suite | Status |
 |-------|-------|--------|
-| TP-CPP-MESON | `tests/test-cpp-builds.sh` | todo |
+| TP-CPP-MESON | `tests/test-cpp-builds.sh` | pass |
 
 **Matrix:** `docs/reviews/requirement-test-matrix.md`
 **Map:** `docs/reviews/test-plan.md`

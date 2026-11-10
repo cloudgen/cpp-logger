@@ -1,6 +1,6 @@
 #!/bin/sh
 # TP-CPP-ANT TP-CPP-ANT-STYLE TP-CPP-GRADLE TP-CPP-GRADLE-STYLE
-# TP-CPP-MESON TP-CPP-MESON-STYLE
+# TP-CPP-MESON TP-CPP-MESON-STYLE TP-CPP-DEPENDENCIES
 # Reads build.xml, build.gradle, and meson.build.
 # Runs ant compile and gradle assemble. Does not run meson or a package install.
 # Does not call mktemp. Does not read, assign, or delete HOME.
@@ -199,6 +199,18 @@ if ! grep -F -q "run_target('run'" meson.build; then
     echo "[FAIL] TP-CPP-MESON-STYLE product target is not run"
     fail=1
 fi
+
+# TP-CPP-DEPENDENCIES
+if ! pkg-config --exists glib-2.0; then
+    echo "[FAIL] TP-CPP-DEPENDENCIES pkg-config --exists glib-2.0 failed"
+    fail=1
+fi
+need TP-CPP-DEPENDENCIES build.sh 'glib-2.0'
+need TP-CPP-DEPENDENCIES meson.build 'glib-2.0'
+forbid TP-CPP-DEPENDENCIES build.sh 'gtk+-3.0'
+forbid TP-CPP-DEPENDENCIES build.sh 'webkit2gtk-4.1'
+forbid TP-CPP-DEPENDENCIES meson.build 'gtk+-3.0'
+forbid TP-CPP-DEPENDENCIES meson.build 'webkit2gtk-4.1'
 
 # Live compile. A missing src/main/c must be reported and must not fail the build.
 ant_log=/tmp/cpp-logger-ant-check.log

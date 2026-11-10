@@ -22,27 +22,14 @@
 #include <sys/utsname.h>
 #include <sys/wait.h>
 
-static bool logger_quiet_mode = false;
-static bool logger_json_mode = false;
-static bool debug_env_enabled = false;
-static int logger_verbose = 0;
-static char logger_folder[4096];
-static char logger_log_path[4096];
-static int logger_purpose = 0;
-static const char *logger_prefix_arg = NULL;
-static const char *logger_home_arg = NULL;
-static const char *logger_datestamp_arg = NULL;
-static int logger_saw_quiet = 0;
-static int logger_saw_json = 0;
-static int logger_saw_debug = 0;
-static int logger_saw_verbose = 0;
-static int logger_pending_page = 0;
-static int logger_retention_done = 0;
-static int logger_maintain_busy = 0;
+/* Purpose: the object main constructed, for a C caller with no object parameter.
+   The retain driver calls logger_maintain_directory before any construction.
+   That wrapper builds a short-lived object and does not store it here.
+   Protection Rule: requirement-cpp-oop.md. This pointer is not a factory. */
+Logger *Logger::logger_active = NULL;
 
-static gchar *logger_json_escape(const char *text);
 
-static const char *logger_command_name(void)
+const char *Logger::logger_command_name(void)
 {
     if (logger_pending_page == 1) {
         return "help";
@@ -69,7 +56,7 @@ static const char *logger_command_name(void)
    CIAO Principles: a verb result is one object, with no human line beside it.
    Protection Rule: requirement-cpp-json.md owns the object.
    Last updated: 2026-11-10 */
-static void logger_die(const char *message)
+void Logger::logger_die(const char *message)
 {
     const char *name = logger_command_name();
 
@@ -91,7 +78,7 @@ static void logger_die(const char *message)
    CIAO Principles: an empty directory does not fall through to another home.
    Protection Rule: requirement-cpp-logger-folder.md owns the two environments.
    Last updated: 2026-10-03 */
-static void logger_join_base(char *out, size_t out_size, const char *head, const char *tail)
+void Logger::logger_join_base(char *out, size_t out_size, const char *head, const char *tail)
 {
     gchar *trimmed;
     gsize length;
@@ -118,7 +105,7 @@ static void logger_join_base(char *out, size_t out_size, const char *head, const
     }
 }
 
-static int logger_datestamp_ok(const char *text)
+int Logger::logger_datestamp_ok(const char *text)
 {
     if (text == NULL || strlen(text) != 8) {
         return 0;
@@ -131,7 +118,7 @@ static int logger_datestamp_ok(const char *text)
     return 1;
 }
 
-static void logger_apply_base(const char *base, const char *stamp)
+void Logger::logger_apply_base(const char *base, const char *stamp)
 {
     if (g_snprintf(logger_folder, sizeof logger_folder, "%s/log", base) >= (gint)sizeof logger_folder) {
         g_printerr("logger folder path is too long\n");
@@ -144,12 +131,12 @@ static void logger_apply_base(const char *base, const char *stamp)
     }
 }
 
-int logger_is_test_verb(void)
+int Logger::logger_is_test_verb(void)
 {
     return logger_purpose == 1;
 }
 
-static void logger_set_purpose(int purpose)
+void Logger::logger_set_purpose(int purpose)
 {
     if (logger_purpose != 0 || logger_pending_page != 0) {
         logger_die("one test purpose command");
@@ -157,7 +144,7 @@ static void logger_set_purpose(int purpose)
     logger_purpose = purpose;
 }
 
-static void logger_list_emit(GSList *names)
+void Logger::logger_list_emit(GSList *names)
 {
     GSList *item;
 
@@ -191,12 +178,12 @@ static void logger_list_emit(GSList *names)
     }
 }
 
-static gint logger_filename_cmp(gconstpointer left, gconstpointer right)
+gint Logger::logger_filename_cmp(gconstpointer left, gconstpointer right)
 {
     return strcmp((const char *)left, (const char *)right);
 }
 
-static void logger_list_log_files(void)
+void Logger::logger_list_log_files(void)
 {
     GDir *dir;
     const char *name;
@@ -246,7 +233,7 @@ static void logger_list_log_files(void)
     g_slist_free_full(names, g_free);
 }
 
-static void logger_show_log_file(void)
+void Logger::logger_show_log_file(void)
 {
     gchar *text = NULL;
     gsize length = 0;
@@ -280,7 +267,7 @@ static void logger_show_log_file(void)
     g_free(text);
 }
 
-static const char *logger_take_value(int argc, char **argv, int *index, const char *flag)
+const char *Logger::logger_take_value(int argc, char **argv, int *index, const char *flag)
 {
     if (*index + 1 >= argc || argv[*index + 1][0] == '\0') {
         char message[256];
@@ -326,7 +313,7 @@ static const char *logger_take_value(int argc, char **argv, int *index, const ch
 //
 // Last updated: 2026-10-03
 // ──────────────────────────────────────────────
-void logger_set_quiet(bool quiet)
+void Logger::logger_set_quiet(bool quiet)
 {
     if (logger_json_mode) {
         logger_quiet_mode = true;
@@ -335,12 +322,12 @@ void logger_set_quiet(bool quiet)
     logger_quiet_mode = quiet;
 }
 
-bool logger_get_quiet(void)
+bool Logger::logger_get_quiet(void)
 {
     return logger_quiet_mode;
 }
 
-bool logger_get_debug(void)
+bool Logger::logger_get_debug(void)
 {
     return debug_env_enabled;
 }
@@ -375,7 +362,7 @@ bool logger_get_debug(void)
 //
 // Last updated: Full CIAO expansion with Parameters & Dependencies (2026-05-08)
 // ──────────────────────────────────────────────
-static void logger_log_found_switches(void)
+void Logger::logger_log_found_switches(void)
 {
     if (!debug_env_enabled) {
         return;
@@ -403,8 +390,32 @@ static void logger_log_found_switches(void)
     }
 }
 
-void logger_output_init(int argc, char **argv)
+Logger::Logger(int argc, char **argv)
+    : logger_quiet_mode(false),
+      logger_json_mode(false),
+      debug_env_enabled(false),
+      logger_verbose(0),
+      logger_folder(),
+      logger_log_path(),
+      logger_purpose(0),
+      logger_prefix_arg(NULL),
+      logger_home_arg(NULL),
+      logger_datestamp_arg(NULL),
+      logger_saw_quiet(0),
+      logger_saw_json(0),
+      logger_saw_debug(0),
+      logger_saw_verbose(0),
+      logger_pending_page(0),
+      logger_retention_done(0),
+      logger_maintain_busy(0)
 {
+    /* argc < 0 builds an unbound object for logger_maintain_directory.
+       The retain driver has no argv for this constructor. Parsing would
+       print and could append a log. This path does not store logger_active. */
+    if (argc < 0) {
+        return;
+    }
+    logger_active = this;
     const char *debug_env;
     int debug_from_env;
 
@@ -628,7 +639,7 @@ void logger_output_init(int argc, char **argv)
    CIAO Principles: Caution on control bytes. Over-protect one object per line.
    Protection Rule: requirement-cpp-json.md owns this escape.
    Last updated: 2026-10-03 */
-static gchar *logger_json_escape(const char *text)
+gchar *Logger::logger_json_escape(const char *text)
 {
     GString *out = g_string_new("");
     const unsigned char *cursor = (const unsigned char *)(text ? text : "");
@@ -662,7 +673,7 @@ static gchar *logger_json_escape(const char *text)
     return g_string_free(out, FALSE);
 }
 
-static const char *logger_level_name(LoggerOutputLevel level)
+const char *Logger::logger_level_name(LoggerOutputLevel level)
 {
     switch (level) {
         case LOGGER_LEVEL_INFO:    return "INFO";
@@ -674,7 +685,7 @@ static const char *logger_level_name(LoggerOutputLevel level)
     }
 }
 
-static int logger_stderr_level(LoggerOutputLevel level)
+int Logger::logger_stderr_level(LoggerOutputLevel level)
 {
     return level == LOGGER_LEVEL_ERROR || level == LOGGER_LEVEL_FATAL;
 }
@@ -683,7 +694,7 @@ static int logger_stderr_level(LoggerOutputLevel level)
    ERROR and FATAL go to stderr. INFO, WARNING, and DEBUG go to stdout.
    CRITICAL is not a well-known level and is not emitted.
    The component is LOG_COMPONENT ("main"): " @main" before " :] ". */
-static void logger_emit_chronicle(LoggerOutputLevel level, const char *message)
+void Logger::logger_emit_chronicle(LoggerOutputLevel level, const char *message)
 {
     char timestamp[32];
     time_t now = time(NULL);
@@ -713,7 +724,7 @@ static void logger_emit_chronicle(LoggerOutputLevel level, const char *message)
    CIAO Principles: Caution on the file type. A missing path is not an error.
    Protection Rule: requirement-cpp-log-retention.md. No recursive delete.
    Last updated: 2026-11-10 */
-static void logger_unlink_regular(const char *path)
+void Logger::logger_unlink_regular(const char *path)
 {
     struct stat st;
 
@@ -733,7 +744,7 @@ static void logger_unlink_regular(const char *path)
    CIAO Principles: housekeeping does not exit.
    Protection Rule: requirement-cpp-log-retention.md.
    Last updated: 2026-11-10 */
-static int logger_retention_join(char *out, size_t out_size, const char *folder, const char *name)
+int Logger::logger_retention_join(char *out, size_t out_size, const char *folder, const char *name)
 {
     gint wrote;
 
@@ -748,7 +759,7 @@ static int logger_retention_join(char *out, size_t out_size, const char *folder,
    CIAO Principles: an unreadable date is not evidence to delete.
    Protection Rule: requirement-cpp-log-retention.md rule 3.
    Last updated: 2026-11-10 */
-static int logger_stamp_to_date(const char *stamp, GDate *date)
+int Logger::logger_stamp_to_date(const char *stamp, GDate *date)
 {
     unsigned year;
     unsigned month;
@@ -776,7 +787,7 @@ static int logger_stamp_to_date(const char *stamp, GDate *date)
    CIAO Principles: only the dated name for this product is eligible.
    Protection Rule: requirement-cpp-log-retention.md rule 3.
    Last updated: 2026-11-10 */
-static int logger_retention_stamp(const char *name, char stamp[9])
+int Logger::logger_retention_stamp(const char *name, char stamp[9])
 {
     size_t prefix_len;
     const char *tail;
@@ -810,7 +821,7 @@ static int logger_retention_stamp(const char *name, char stamp[9])
    CIAO Principles: a missing tool is a failed package, not a failed log write.
    Protection Rule: requirement-cpp-log-retention.md rule 9. No mkstemp.
    Last updated: 2026-11-10 */
-static int logger_spawn_ok(gchar **argv)
+int Logger::logger_spawn_ok(gchar **argv)
 {
     gint status = 1;
     GError *error = NULL;
@@ -835,7 +846,7 @@ static int logger_spawn_ok(gchar **argv)
    CIAO Principles: a partial package is removed. The plain file stays when that happens.
    Protection Rule: requirement-cpp-log-retention.md rules 5 and 9.
    Last updated: 2026-11-10 */
-static int logger_compress_day(const char *folder, const char *stamp, const char *plain_name)
+int Logger::logger_compress_day(const char *folder, const char *stamp, const char *plain_name)
 {
     char plain_path[4096];
     char final_path[4096];
@@ -930,7 +941,7 @@ static int logger_compress_day(const char *folder, const char *stamp, const char
    CIAO Principles: the active file of this run stays plain.
    Protection Rule: requirement-cpp-log-retention.md rules 4 through 7.
    Last updated: 2026-11-10 */
-static void logger_maintain_one(const char *folder, const char *active_basename, const GDate *today, const char *stamp)
+void Logger::logger_maintain_one(const char *folder, const char *active_basename, const GDate *today, const char *stamp)
 {
     char plain_name[256];
     char path[4096];
@@ -983,7 +994,7 @@ static void logger_maintain_one(const char *folder, const char *active_basename,
    CIAO Principles: a missing directory stays missing. Housekeeping does not exit.
    Protection Rule: requirement-cpp-log-retention.md rules 8 and 9.
    Last updated: 2026-11-10 */
-static void logger_maintain_body(const char *folder, const char *active_basename, const char *today_yyyymmdd)
+void Logger::logger_maintain_body(const char *folder, const char *active_basename, const char *today_yyyymmdd)
 {
     GDate today;
     GDir *dir;
@@ -1028,7 +1039,7 @@ static void logger_maintain_body(const char *folder, const char *active_basename
     g_hash_table_destroy(stamps);
 }
 
-void logger_maintain_directory(const char *folder, const char *active_basename, const char *today_yyyymmdd)
+void Logger::logger_maintain_directory(const char *folder, const char *active_basename, const char *today_yyyymmdd)
 {
     if (logger_maintain_busy) {
         return;
@@ -1044,7 +1055,7 @@ void logger_maintain_directory(const char *folder, const char *active_basename, 
    Why This Design: the test reads one file path from requirement-cpp-logger.md.
    Protection Rule: do not write when the log path is unresolved.
    Last updated: 2026-10-03 */
-static void logger_append_log_file(LoggerOutputLevel level, const char *message)
+void Logger::logger_append_log_file(LoggerOutputLevel level, const char *message)
 {
     char timestamp[32];
     time_t now;
@@ -1096,7 +1107,7 @@ static void logger_append_log_file(LoggerOutputLevel level, const char *message)
     }
 }
 
-void logger_log(LoggerOutputLevel level, const char *format, va_list ap)   // Changed: va_list (by value), no ...
+void Logger::logger_log(LoggerOutputLevel level, const char *format, va_list ap)   // Changed: va_list (by value), no ...
 {
     if (level == LOGGER_LEVEL_DEBUG && !logger_get_debug()) {
         return;
@@ -1151,7 +1162,7 @@ void logger_log(LoggerOutputLevel level, const char *format, va_list ap)   // Ch
 //
 // Last updated: Full CIAO expansion (2026-05-08)
 // ──────────────────────────────────────────────
-void logger_info(const char *format, ...)
+void Logger::logger_info(const char *format, ...)
 {
     va_list args;
     va_start(args, format);
@@ -1181,7 +1192,7 @@ void logger_info(const char *format, ...)
 //
 // Last updated: Full CIAO expansion (2026-05-08)
 // ──────────────────────────────────────────────
-void logger_warn(const char *format, ...)
+void Logger::logger_warn(const char *format, ...)
 {
     va_list args;
     va_start(args, format);
@@ -1211,7 +1222,7 @@ void logger_warn(const char *format, ...)
 //
 // Last updated: Full CIAO expansion (2026-05-08)
 // ──────────────────────────────────────────────
-void logger_error(const char *format, ...)
+void Logger::logger_error(const char *format, ...)
 {
     va_list args;
     va_start(args, format);
@@ -1219,7 +1230,7 @@ void logger_error(const char *format, ...)
     va_end(args);
 }
 
-void logger_fatal(const char *format, ...)
+void Logger::logger_fatal(const char *format, ...)
 {
     va_list args;
     va_start(args, format);
@@ -1254,7 +1265,7 @@ void logger_fatal(const char *format, ...)
 //
 // Last updated: Full CIAO expansion (2026-05-08)
 // ──────────────────────────────────────────────
-void logger_debug(const char *format, ...)
+void Logger::logger_debug(const char *format, ...)
 {
     if (!logger_get_debug()) return;
 
@@ -1284,7 +1295,7 @@ void logger_debug(const char *format, ...)
 //
 // Last updated: Full CIAO expansion (2026-05-08)
 // ──────────────────────────────────────────────
-void logger_print_help(void)
+void Logger::logger_print_help(void)
 {
     if (logger_json_mode) {
         g_print("{\"command\":\"help\",\"verbs\":[\"help\",\"about\",\"test\",\"list\",\"show\"],\"flags\":[\"--verbose\",\"--quiet\",\"--json\",\"--debug\",\"--prefix\",\"--home\",\"--log-datestamp\"]}\n");
@@ -1349,7 +1360,7 @@ void logger_print_help(void)
 //
 // Last updated: Three live facts (2026-11-10)
 // ──────────────────────────────────────────────
-static void logger_about_copy(char *out, size_t out_size, const char *value)
+void Logger::logger_about_copy(char *out, size_t out_size, const char *value)
 {
     if (value == NULL || value[0] == '\0') {
         out[0] = '\0';
@@ -1358,7 +1369,7 @@ static void logger_about_copy(char *out, size_t out_size, const char *value)
     g_strlcpy(out, value, out_size);
 }
 
-static void logger_about_probe(char *out, size_t out_size, const char *path, const char *version)
+void Logger::logger_about_probe(char *out, size_t out_size, const char *path, const char *version)
 {
     struct stat st;
 
@@ -1373,7 +1384,7 @@ static void logger_about_probe(char *out, size_t out_size, const char *path, con
     g_strlcpy(out, "not found", out_size);
 }
 
-void logger_print_about(void)
+void Logger::logger_print_about(void)
 {
     char stamp[64];
     char version[32];
@@ -1585,3 +1596,155 @@ void logger_print_about(void)
     g_print("    Running from: %s\n", location);
 }
 
+
+/* Purpose: C linkage for the names already declared in logger.h.
+   Each name forwards to the object main constructed.
+   logger_maintain_directory, with nothing bound, uses a short-lived object
+   so the retain driver does not parse argv or append a log.
+   Protection Rule: requirement-cpp-oop.md. These names are not new behavior. */
+
+extern "C" void logger_log(LoggerOutputLevel level, const char *format, va_list ap)
+{
+    if (Logger::logger_active == NULL) {
+        g_printerr("Logger is constructed at the call site\n");
+        exit(1);
+    }
+    Logger::logger_active->logger_log(level, format, ap);
+}
+
+extern "C" void logger_output_init(int, char **)
+{
+    if (Logger::logger_active == NULL) {
+        g_printerr("Logger is constructed at the call site\n");
+        exit(1);
+    }
+}
+
+extern "C" int logger_is_test_verb(void)
+{
+    if (Logger::logger_active == NULL) {
+        g_printerr("Logger is constructed at the call site\n");
+        exit(1);
+    }
+    return Logger::logger_active->logger_is_test_verb();
+}
+
+extern "C" void logger_set_quiet(bool quiet)
+{
+    if (Logger::logger_active == NULL) {
+        g_printerr("Logger is constructed at the call site\n");
+        exit(1);
+    }
+    Logger::logger_active->logger_set_quiet(quiet);
+}
+
+extern "C" bool logger_get_quiet(void)
+{
+    if (Logger::logger_active == NULL) {
+        g_printerr("Logger is constructed at the call site\n");
+        exit(1);
+    }
+    return Logger::logger_active->logger_get_quiet();
+}
+
+extern "C" bool logger_get_debug(void)
+{
+    if (Logger::logger_active == NULL) {
+        g_printerr("Logger is constructed at the call site\n");
+        exit(1);
+    }
+    return Logger::logger_active->logger_get_debug();
+}
+
+extern "C" void logger_info(const char *format, ...)
+{
+    va_list ap;
+
+    if (Logger::logger_active == NULL) {
+        g_printerr("Logger is constructed at the call site\n");
+        exit(1);
+    }
+    va_start(ap, format);
+    Logger::logger_active->logger_log(LOGGER_LEVEL_INFO, format, ap);
+    va_end(ap);
+}
+
+extern "C" void logger_warn(const char *format, ...)
+{
+    va_list ap;
+
+    if (Logger::logger_active == NULL) {
+        g_printerr("Logger is constructed at the call site\n");
+        exit(1);
+    }
+    va_start(ap, format);
+    Logger::logger_active->logger_log(LOGGER_LEVEL_WARNING, format, ap);
+    va_end(ap);
+}
+
+extern "C" void logger_error(const char *format, ...)
+{
+    va_list ap;
+
+    if (Logger::logger_active == NULL) {
+        g_printerr("Logger is constructed at the call site\n");
+        exit(1);
+    }
+    va_start(ap, format);
+    Logger::logger_active->logger_log(LOGGER_LEVEL_ERROR, format, ap);
+    va_end(ap);
+}
+
+extern "C" void logger_fatal(const char *format, ...)
+{
+    va_list ap;
+
+    if (Logger::logger_active == NULL) {
+        g_printerr("Logger is constructed at the call site\n");
+        exit(1);
+    }
+    va_start(ap, format);
+    Logger::logger_active->logger_log(LOGGER_LEVEL_FATAL, format, ap);
+    va_end(ap);
+}
+
+extern "C" void logger_debug(const char *format, ...)
+{
+    va_list ap;
+
+    if (Logger::logger_active == NULL) {
+        g_printerr("Logger is constructed at the call site\n");
+        exit(1);
+    }
+    va_start(ap, format);
+    Logger::logger_active->logger_log(LOGGER_LEVEL_DEBUG, format, ap);
+    va_end(ap);
+}
+
+extern "C" void logger_maintain_directory(const char *folder, const char *active_basename, const char *today_yyyymmdd)
+{
+    if (Logger::logger_active == NULL) {
+        Logger cold(-1, NULL);
+        cold.logger_maintain_directory(folder, active_basename, today_yyyymmdd);
+        return;
+    }
+    Logger::logger_active->logger_maintain_directory(folder, active_basename, today_yyyymmdd);
+}
+
+extern "C" void logger_print_help(void)
+{
+    if (Logger::logger_active == NULL) {
+        g_printerr("Logger is constructed at the call site\n");
+        exit(1);
+    }
+    Logger::logger_active->logger_print_help();
+}
+
+extern "C" void logger_print_about(void)
+{
+    if (Logger::logger_active == NULL) {
+        g_printerr("Logger is constructed at the call site\n");
+        exit(1);
+    }
+    Logger::logger_active->logger_print_about();
+}

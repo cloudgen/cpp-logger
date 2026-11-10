@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2026-11-10
+
+### Added
+- `tests/test-cpp-oop.sh` checks `class Logger`, the construction in `main`, and the `logger_*` names that forward to that object.
+
+### Changed
+- The logger is `class Logger`. `main` constructs `Logger logger(argc, argv)`. The `logger_*` names forward to that object. Log lines, retention, JSON, and the about page stay the same.
+- Ant, Gradle, and Meson call `pkg-config --cflags` and `pkg-config --libs` separately. The host set is Windows, macOS, and Linux with glibc, uClibc, or musl. A missing `src/main/c` contributes no files.
+- `project.h`, `project.ini`, `meson.build`, `build.gradle`, `build.xml`, and the README Version badge say 1.1.1.
+
 ## [1.1.0] - 2026-11-10
 
 ### Added

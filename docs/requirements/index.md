@@ -7,6 +7,7 @@ Product law for cpp-logger. Rows match files in this folder.
 | requirement-actor-role-subject | architecture | Active | requirement-actor-role-subject.md |
 | requirement-class-software-dev | class | Active | requirement-class-software-dev.md |
 | requirement-cpp-coding-style | coding | Active | requirement-cpp-coding-style.md |
+| requirement-cpp-oop | oop | Active | requirement-cpp-oop.md |
 | requirement-cpp-logger | logger | Active | requirement-cpp-logger.md |
 | requirement-cpp-logger-folder | logger | Active | requirement-cpp-logger-folder.md |
 | requirement-cpp-log-retention | logger | Active | requirement-cpp-log-retention.md |
@@ -30,6 +31,8 @@ Product law for cpp-logger. Rows match files in this folder.
 | requirement-cpp-meson-coding-style | coding | Active | requirement-cpp-meson-coding-style.md |
 
 The program does not link GTK, WebKit, Lua, or SQLite. That link rule is owned by `requirement-cpp-dependencies.md`.
+
+The OOP row owns the class map. `Logger` is declared in `src/main/cpp/logger.h` and implemented in `src/main/cpp/logger.cpp`. `main` constructs it with `Logger logger(argc, argv);`. A new logging behavior is a method on that class before it is a new `logger_*` function. The `logger_*` names that remain forward to that object. The proof is `TP-CPP-OOP`. `tests/test-cpp-oop.sh` exited 0 on 2026-11-10.
 
 The logger row owns `logger_*` in `src/main/cpp/logger.cpp` and `src/main/cpp/logger.h`, the human line `[YYYY-MM-DD HH:MM:SS] pid:<pid> [<LEVEL>] @main :] <message>`, and the dated file that stores it. The well-known levels are `INFO`, `DEBUG`, `WARNING`, `ERROR`, and `FATAL`. `test --home /tmp --log-datestamp 20261003` names `/tmp/.app/cpp-logger/log/cpp-logger-20261003.log`. `test --prefix /tmp` with the same stamp names `/tmp/var/cpp-logger/log/cpp-logger-20261003.log`. `list` prints the names in the selected directory. `show` prints the file for one datestamp.
 

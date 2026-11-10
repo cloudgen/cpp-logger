@@ -28,7 +28,7 @@ This file owns when `logger_debug` prints. The call stays in `requirement-cpp-lo
 
 ## 2. Core rules
 
-1. `--debug` enables `logger_debug`. A non-empty `DEBUG` value enables the same predicate. An empty or unset `DEBUG`, with no `--debug`, leaves it off. `DEBUG=1` is the documented environment value. `logger_output_init` reads `DEBUG` once.
+1. `--debug` enables `logger_debug`. A non-empty `DEBUG` value enables the same predicate. An empty or unset `DEBUG`, with no `--debug`, leaves it off. `DEBUG=1` is the documented environment value. The `Logger` constructor reads `DEBUG` once.
 2. `logger_get_debug()` returns that captured flag. There is no `logger_set_debug`.
 3. Quiet mode hides the human debug line even when debug is on. Debug mode shows stdout log lines while the run is not quiet and not JSON. `--verbose` shows them the same way. In JSON mode that same call is the JSON object from `requirement-cpp-json.md` when this predicate is on. `--verbose` and `--debug` do not add the human line in JSON mode.
 4. When debug is on, the first debug lines name each switch that was present on the command. A switch that was not passed is not named. The text is `switch --quiet`, `switch --json`, `switch --debug`, `switch --verbose`, `switch --prefix <dir>`, `switch --home <dir>`, or `switch --log-datestamp <YYYYMMDD>`. `DEBUG`, `QUIET`, and `JSON` are environment variables, so they are not switch lines. `help`, `about`, `test`, `list`, and `show` are commands, so they are not switch lines.

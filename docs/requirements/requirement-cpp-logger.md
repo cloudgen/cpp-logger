@@ -112,7 +112,7 @@ static const char *logger_level_name(LoggerOutputLevel level)
     }
 }
 
-static void logger_emit_chronicle(LoggerOutputLevel level, const char *message)
+void Logger::logger_emit_chronicle(LoggerOutputLevel level, const char *message)
 {
     char timestamp[32];
     time_t now = time(NULL);
@@ -135,7 +135,7 @@ static void logger_emit_chronicle(LoggerOutputLevel level, const char *message)
     }
 }
 
-static void logger_append_log_file(LoggerOutputLevel level, const char *message)
+void Logger::logger_append_log_file(LoggerOutputLevel level, const char *message)
 {
     char timestamp[32];
     time_t now;
@@ -172,7 +172,7 @@ static void logger_append_log_file(LoggerOutputLevel level, const char *message)
     fclose(file);
 }
 
-void logger_log(LoggerOutputLevel level, const char *format, va_list ap)
+void Logger::logger_log(LoggerOutputLevel level, const char *format, va_list ap)
 {
     if (level == LOGGER_LEVEL_DEBUG && !logger_get_debug()) {
         return;
@@ -239,7 +239,7 @@ static gint logger_filename_cmp(gconstpointer left, gconstpointer right)
     return strcmp((const char *)left, (const char *)right);
 }
 
-static void logger_list_log_files(void)
+void Logger::logger_list_log_files(void)
 {
     GDir *dir;
     const char *name;
@@ -287,7 +287,7 @@ static void logger_list_log_files(void)
     g_slist_free_full(names, g_free);
 }
 
-static void logger_show_log_file(void)
+void Logger::logger_show_log_file(void)
 {
     gchar *text = NULL;
     gsize length = 0;

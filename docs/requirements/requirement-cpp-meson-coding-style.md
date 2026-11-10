@@ -130,7 +130,7 @@ Statement banner. `executable()` is the sample. `dependency()` and `run_target()
 
 | TP-ID | Suite | Status |
 |-------|-------|--------|
-| TP-CPP-MESON-STYLE | `tests/test-cpp-builds.sh` | todo |
+| TP-CPP-MESON-STYLE | `tests/test-cpp-builds.sh` | pass |
 
 **Matrix:** `docs/reviews/requirement-test-matrix.md`
 **Map:** `docs/reviews/test-plan.md`

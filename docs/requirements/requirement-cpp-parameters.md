@@ -14,7 +14,7 @@ This file owns every command-line flag and environment variable the binary accep
 | Box | Meaning | Example |
 |-----|---------|---------|
 | You / this login | The person who starts the program | You pass `--quiet` |
-| The other role | `logger_output_init()` | It reads argv and the environment first |
+| The other role | The `Logger` constructor | It reads argv and the environment first |
 | Not this file | What a log line looks like | `requirement-cpp-logger.md` |
 
 | Includes | Excludes |
@@ -63,14 +63,14 @@ There is no `--shutdown`, no `--bookmark`, no `--config`, and no `SHUTDOWN` or `
 
 One invocation accepts one of `test`, `list`, or `show`. A second one exits 1 with `one test purpose command`.
 
-Parsing happens in `logger_output_init()`. `JSON=1` is read before the scan. `help` and `about` run after the scan, so `--json` after the verb is the same mode as `--json` before it.
+Parsing happens in the `Logger` constructor. `JSON=1` is read before the scan. `help` and `about` run after the scan, so `--json` after the verb is the same mode as `--json` before it. The C name `logger_output_init` forwards to the constructed object and does not parse again.
 
 ### Sample code (this project)
 
 From `src/main/cpp/logger.cpp`.
 
 ```cpp
-static void logger_set_purpose(int purpose)
+void Logger::logger_set_purpose(int purpose)
 {
     if (logger_purpose != 0) {
         g_printerr("one test purpose command\n");

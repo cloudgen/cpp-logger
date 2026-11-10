@@ -59,10 +59,10 @@ For the test command, the literal directory `/tmp` stands in:
 
 ### Sample code (this project)
 
-From `src/main/cpp/logger.cpp`. `PROJECT_NAME` is the macro in `project.h`. A test-purpose command uses the directory switch. A normal run uses the effective user id and, for every user other than root or sudo, `HOME`. The missing-switch check and the path choice are separate blocks in `logger_output_init`.
+From `src/main/cpp/logger.cpp`. `PROJECT_NAME` is the macro in `project.h`. A test-purpose command uses the directory switch. A normal run uses the effective user id and, for every user other than root or sudo, `HOME`. The missing-switch check and the path choice are separate blocks in the `Logger` constructor.
 
 ```cpp
-static void logger_join_base(char *out, size_t out_size, const char *head, const char *tail)
+void Logger::logger_join_base(char *out, size_t out_size, const char *head, const char *tail)
 {
     gchar *trimmed;
     gsize length;

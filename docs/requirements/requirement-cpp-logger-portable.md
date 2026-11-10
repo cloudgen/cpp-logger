@@ -53,7 +53,7 @@ This product is one adopter. Its name is `cpp-logger`. The dated file, the direc
 | Blank | This product |
 |-------|----------------|
 | `<name>` | `cpp-logger` |
-| Version | `1.1.0` |
+| Version | `1.1.1` |
 | Component | `main` |
 | Dated file | `cpp-logger-<YYYYMMDD>.log` |
 | Log directory, other user | `$HOME/.app/cpp-logger/log` |

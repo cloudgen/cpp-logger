@@ -97,6 +97,8 @@ docs/playbook
 # =============================================
 # CIAO / Project specific
 # =============================================
+# Local agent contract. It stays off the product forge surface.
+/AGENTS.md
 # Ignore backup files
 *.bak
 *.backup

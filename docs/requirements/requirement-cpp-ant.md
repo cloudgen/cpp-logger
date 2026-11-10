@@ -80,7 +80,7 @@ export SRC_CPP=$SRC/main/cpp
 
 | TP-ID | Suite | Status |
 |-------|-------|--------|
-| TP-CPP-ANT | `tests/test-cpp-builds.sh` | todo |
+| TP-CPP-ANT | `tests/test-cpp-builds.sh` | pass |
 
 **Matrix:** `docs/reviews/requirement-test-matrix.md`
 **Map:** `docs/reviews/test-plan.md`
