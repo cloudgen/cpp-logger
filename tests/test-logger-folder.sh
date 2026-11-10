@@ -9,6 +9,7 @@
 # Cleanup removes those two trees, empty parent directories, and the work directory.
 # It does not remove /tmp and it does not start a normal run.
 set -eu
+unset CONDA_PREFIX CONDA_DEFAULT_ENV VIRTUAL_ENV PYENV_VIRTUAL_ENV
 
 cd "$(dirname "$0")/.."
 
@@ -148,6 +149,19 @@ printf '%s\n' "${help_out}" | grep -F -- '--verbose' >/dev/null
 printf '%s\n' "${help_out}" | grep -F -- '--log-datestamp' >/dev/null
 printf '%s\n' "${help_out}" | grep -F '/var/' >/dev/null
 printf '%s\n' "${help_out}" | grep -F '/.app/' >/dev/null
+
+venv=/tmp/cpp-logger-venv
+rm -rf "${venv}"
+env -u HOME -u PREFIX -u CONDA_PREFIX -u CONDA_DEFAULT_ENV -u PYENV_VIRTUAL_ENV \
+    VIRTUAL_ENV="${venv}" "${bin}" >/dev/null
+venv_stamp=$(date +%Y%m%d)
+venv_log="${venv}/.app/cpp-logger/log/cpp-logger-${venv_stamp}.log"
+if [ ! -f "${venv_log}" ]; then
+    echo "[ERROR] VIRTUAL_ENV did not create the dated log"
+    exit 1
+fi
+grep -F '] @main :] Starting cpp-logger' "${venv_log}" >/dev/null
+rm -rf "${venv}"
 
 echo "----- ${home_log} -----"
 cat "${home_log}"

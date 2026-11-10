@@ -1,15 +1,25 @@
-#!/bin/bash
-# =========================================================================
-# build.sh - Build Script for cpp-logger
-# Minimal change: Sources project.sh as Single Source of Truth + safe fallbacks
-# =========================================================================
+#!/bin/sh
+# =============================================================================
+# build.sh
+# =============================================================================
+#
+# GENERAL PURPOSE:
+# Compile and place this program. The interpreter is requirement-cpp-build-sh.md.
+# The function names and headers are requirement-cpp-build-sh-coding-style.md.
+#
+# CIAO PRINCIPLES APPLIED:
+# - Caution: set -e stops the script when a compile command fails.
+# - Intentional: typed verbs stay short. Functions keep the build_ prefix.
+#
+# Last reviewed: 2026-11-10
+# =============================================================================
 
 set -e
 
-# ====================== Source project.sh (Single Source of Truth) ======================
+# Read project.sh. A missing file keeps the fallback names.
 if [ -f "./project.sh" ]; then
-    echo "[INFO] Sourcing project.sh as Single Source of Truth..."
-    source ./project.sh
+    echo "[INFO] Reading project.sh as Single Source of Truth..."
+    . ./project.sh
 else
     echo "[WARN] project.sh not found — using safe generic fallbacks"
     export PRJ="${PRJ:-$(basename "$(pwd)")}"
@@ -25,7 +35,21 @@ SRC_DIR="${SRC_C:-src/main/cpp}"
 BUILD_DIR="${BUILD_DEBUG:-target/exe/debug}"
 BINARY="${BUILD_DIR}/${PROJECT_NAME}"
 
-install_deps() {
+# =============================================================================
+# build_install_deps() - Install the apt packages the compile needs
+# =============================================================================
+#
+# GENERAL PURPOSE:
+# Ask apt for the compiler, pkg-config, and the GLib headers. The package
+# names stay in requirement-cpp-dependencies.md.
+#
+# CIAO PRINCIPLES APPLIED:
+# - Caution: set -e stops the script when apt fails.
+# - Intentional: this is developer bootstrap. It does not copy the binary.
+#
+# Last reviewed: 2026-11-10
+# =============================================================================
+build_install_deps() {
     echo "[INFO] Installing required development packages..."
     sudo apt update -qq
     sudo apt install -y -qq \
@@ -36,8 +60,22 @@ install_deps() {
     echo "[INFO] All dependencies installed successfully."
 }
 
-# Place the already-built binary. Does not compile, does not call sudo, does not run apt.
-place_built_binary() {
+# =============================================================================
+# build_place_binary() - Copy the built program into one directory
+# =============================================================================
+#
+# GENERAL PURPOSE:
+# Copy the already-built binary to the directory named by the caller and
+# set its mode. This function does not compile, does not call sudo, and
+# does not run apt.
+#
+# CIAO PRINCIPLES APPLIED:
+# - Caution: a missing binary stops the command before mkdir.
+# - Intentional: local and global place share this one copy.
+#
+# Last reviewed: 2026-11-10
+# =============================================================================
+build_place_binary() {
     local dest_dir="$1"
 
     if [ ! -x "${BINARY}" ]; then
@@ -49,36 +87,89 @@ place_built_binary() {
     echo "[INFO] Installed ${dest_dir}/${PROJECT_NAME}"
 }
 
-install_local() {
-    # Operator place only. Tests must not call this and must not expand HOME.
+# =============================================================================
+# build_install_local() - Place the binary in the user bin
+# =============================================================================
+#
+# GENERAL PURPOSE:
+# Copy the built program to the user bin under HOME. Tests must not call
+# this function and must not expand HOME.
+#
+# CIAO PRINCIPLES APPLIED:
+# - Caution: an empty HOME stops the command.
+# - Intentional: the place is the user bin, not the log directory.
+#
+# Last reviewed: 2026-11-10
+# =============================================================================
+build_install_local() {
     if [ -z "${HOME}" ]; then
         echo "[ERROR] HOME is empty. Local installation needs a home directory."
         exit 1
     fi
-    place_built_binary "${HOME}/.local/bin"
+    build_place_binary "${HOME}/.local/bin"
 }
 
-install_global() {
+# =============================================================================
+# build_install_global() - Place the binary in the prefix bin
+# =============================================================================
+#
+# GENERAL PURPOSE:
+# Copy the built program to the prefix bin. PREFIX defaults to /usr/local.
+# This command does not call sudo.
+#
+# CIAO PRINCIPLES APPLIED:
+# - Caution: a missing or unwritable directory stops the command.
+# - Intentional: the operator who can write that directory runs this verb.
+#
+# Last reviewed: 2026-11-10
+# =============================================================================
+build_install_global() {
     local prefix="${PREFIX:-/usr/local}"
     local global_bin="${prefix%/}/bin"
     if [ ! -d "${global_bin}" ] || [ ! -w "${global_bin}" ]; then
         echo "[ERROR] ${global_bin} is not writable. Re-run as the user who can write that directory. This command does not call sudo."
         exit 1
     fi
-    place_built_binary "${global_bin}"
+    build_place_binary "${global_bin}"
 }
 
-# ====================== clean ======================
-clean() {
+# =============================================================================
+# build_clean() - Remove build output
+# =============================================================================
+#
+# GENERAL PURPOSE:
+# Remove the debug directory and the other build directories. The sources
+# stay.
+#
+# CIAO PRINCIPLES APPLIED:
+# - Caution: a missing directory does not fail the clean.
+# - Intentional: clean removes build output and leaves the sources.
+#
+# Last reviewed: 2026-11-10
+# =============================================================================
+build_clean() {
     echo "[INFO] Cleaning build artifacts..."
     rm -rf "${BUILD_DIR}" target/ build/ .gradle/ autom4te.cache 2>/dev/null || true
     echo "[INFO] Clean completed."
 }
 
-# ====================== build ======================
-# =========================================================================
-# CIAO PROTECTION BLOCK - build() function (Sacred)
-# =========================================================================
+# =============================================================================
+# build_link() - Compile and link the program
+# =============================================================================
+#
+# GENERAL PURPOSE:
+# This function is the single place that compiles and links.
+#
+# CIAO PRINCIPLES APPLIED:
+# - Caution: a tree with no source file stops before the compiler runs.
+# - Intentional: C and C++ stay in one link. The flags stay on these lines.
+# - Over-protect: the protection block below stays with this function.
+#
+# Last reviewed: 2026-11-10
+# =============================================================================
+# =============================================================================
+# CIAO PROTECTION BLOCK - build_link() function (Sacred)
+# =============================================================================
 #
 # This function is the Single Point of Truth for compilation and linking.
 # Future AI or developers MUST NOT:
@@ -92,8 +183,8 @@ clean() {
 # Principle 18 (Protect Against AI & Human Modification).
 #
 # Last updated: 2026-05-24
-# =========================================================================
-build() {
+# =============================================================================
+build_link() {
     echo "[INFO] Starting simple GCC/C++ build for ${PROJECT_NAME}..."
 
     mkdir -p "${BUILD_DIR}"
@@ -143,19 +234,19 @@ build() {
 # ====================== Main logic ======================
 case "$1" in
     install|deps)
-        install_deps
+        build_install_deps
         ;;
     install-local)
-        install_local
+        build_install_local
         ;;
     install-global)
-        install_global
+        build_install_global
         ;;
     clean)
-        clean
+        build_clean
         ;;
     build|""|simple)
-        build
+        build_link
         ;;
     *)
         echo "Usage: $0 {install|install-local|install-global|clean|build}"

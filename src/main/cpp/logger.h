@@ -18,6 +18,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdarg.h>
+#include <time.h>
 #include <glib.h>
 
 // =========================================================================
@@ -40,9 +41,12 @@ typedef enum {
     LOGGER_LEVEL_INFO,
     LOGGER_LEVEL_WARNING,
     LOGGER_LEVEL_ERROR,
-    LOGGER_LEVEL_DEBUG,
-    LOGGER_LEVEL_FATAL
+    LOGGER_LEVEL_CRITICAL,
+    LOGGER_LEVEL_FATAL,
+    LOGGER_LEVEL_DEBUG
 } LoggerOutputLevel;
+
+typedef time_t (*LoggerClock)(void);
 
 #ifdef __cplusplus
 
@@ -53,18 +57,20 @@ public:
     // C callers, including the retain driver, have no object parameter.
     static Logger *logger_active;
 
-    Logger(int argc, char **argv);
+    Logger(const char *logname, const char *logdir, const char *basedir, bool is_quiet, LoggerClock clock);
 
     int logger_is_test_verb(void);
+    void logger_finish_command(void);
     void logger_set_quiet(bool quiet);
     bool logger_get_quiet(void);
     bool logger_get_debug(void);
-    void logger_log(LoggerOutputLevel level, const char *format, va_list ap);
-    void logger_info(const char *format, ...);
-    void logger_warn(const char *format, ...);
-    void logger_error(const char *format, ...);
-    void logger_fatal(const char *format, ...);
-    void logger_debug(const char *format, ...);
+    void logger_log(LoggerOutputLevel level, const char *component, const char *format, va_list ap);
+    void logger_info(const char *component, const char *format, ...);
+    void logger_warn(const char *component, const char *format, ...);
+    void logger_error(const char *component, const char *format, ...);
+    void logger_critical(const char *component, const char *format, ...);
+    void logger_fatal(const char *component, const char *format, ...);
+    void logger_debug(const char *component, const char *format, ...);
     void logger_maintain_directory(const char *folder, const char *active_basename, const char *today_yyyymmdd);
     void logger_print_help(void);
     void logger_print_about(void);
@@ -87,6 +93,9 @@ private:
     int logger_pending_page;
     int logger_retention_done;
     int logger_maintain_busy;
+    char logger_name[256];
+    char logger_old_log_path[4096];
+    LoggerClock logger_clock;
 
     gchar *logger_json_escape(const char *text);
     const char *logger_command_name(void);
@@ -104,7 +113,16 @@ private:
     void logger_log_found_switches(void);
     const char *logger_level_name(LoggerOutputLevel level);
     int logger_stderr_level(LoggerOutputLevel level);
-    void logger_emit_chronicle(LoggerOutputLevel level, const char *message);
+    void logger_store_name(const char *logname);
+    void logger_file_stamp(char *stamp, size_t stamp_size);
+    void logger_clock_day(char *stamp, size_t stamp_size);
+    void logger_format_timestamp(char *timestamp, size_t timestamp_size);
+    void logger_apply_folder(const char *folder, const char *stamp);
+    int logger_try_env_base(const char *env_name, const char *stamp);
+    void logger_resolve_paths(const char *logdir, const char *basedir);
+    void logger_ensure_log_directory(void);
+    void logger_note_dated_path(void);
+    void logger_emit_chronicle(LoggerOutputLevel level, const char *component, const char *message);
     void logger_unlink_regular(const char *path);
     int logger_retention_join(char *out, size_t out_size, const char *folder, const char *name);
     int logger_stamp_to_date(const char *stamp, GDate *date);
@@ -113,7 +131,7 @@ private:
     int logger_compress_day(const char *folder, const char *stamp, const char *plain_name);
     void logger_maintain_one(const char *folder, const char *active_basename, const GDate *today, const char *stamp);
     void logger_maintain_body(const char *folder, const char *active_basename, const char *today_yyyymmdd);
-    void logger_append_log_file(LoggerOutputLevel level, const char *message);
+    void logger_append_log_file(LoggerOutputLevel level, const char *component, const char *message);
     void logger_about_copy(char *out, size_t out_size, const char *value);
     void logger_about_probe(char *out, size_t out_size, const char *path, const char *version);
 };
@@ -141,7 +159,8 @@ private:
 extern "C" {
 #endif
 
-void logger_log(LoggerOutputLevel level, const char *format, va_list ap);
+void logger_parse_invocation(int argc, char **argv, const char **logdir, const char **basedir, bool *quiet);
+void logger_log(LoggerOutputLevel level, const char *component, const char *format, va_list ap);
 
 // =========================================================================
 // Convenience functions (Single Point of Entry)
@@ -152,11 +171,12 @@ int logger_is_test_verb(void);
 void logger_set_quiet(bool quiet);
 bool logger_get_quiet(void);
 bool logger_get_debug(void);
-void logger_info(const char *format, ...);
-void logger_warn(const char *format, ...);
-void logger_error(const char *format, ...);
-void logger_fatal(const char *format, ...);
-void logger_debug(const char *format, ...);     // Controlled by DEBUG=1
+void logger_info(const char *component, const char *format, ...);
+void logger_warn(const char *component, const char *format, ...);
+void logger_error(const char *component, const char *format, ...);
+void logger_critical(const char *component, const char *format, ...);
+void logger_fatal(const char *component, const char *format, ...);
+void logger_debug(const char *component, const char *format, ...);     // Controlled by DEBUG=1
 
 /* Purpose: apply the 7-day package and the 30-day removal to other dated names.
    Parameters: folder is the log directory. active_basename is the plain file
@@ -164,7 +184,7 @@ void logger_debug(const char *format, ...);     // Controlled by DEBUG=1
    Dependencies: the log directory, tar on this host, zip on Windows.
    Why This Design: a check can call the same function with a frozen date.
    CIAO Principles: a failed package leaves the plain file. This function does not exit.
-   Protection Rule: requirement-cpp-log-retention.md. help, about, list, show, and test do not call this.
+   Protection Rule: requirement-cpp-log-retention.md. help, about, list, and show do not call this. A log call does, including test.
    Last updated: 2026-11-10 */
 void logger_maintain_directory(const char *folder, const char *active_basename, const char *today_yyyymmdd);
 

@@ -23,9 +23,9 @@ This file owns how the program is checked. The named check is a full-program che
 
 | Surface | What you open | What for |
 |---------|---------------|----------|
-| `./build.sh` | Compile check | The binary links |
+| `./build.sh` | Interpreter and style checks | `tests/test-cpp-builds.sh` reads the script and does not run it |
 | `docs/reviews/test-plan.md` | TP map | Status of each id |
-| `tests/test-cpp-builds.sh` | Build files | Ant, Gradle, and Meson |
+| `tests/test-cpp-builds.sh` | Build files and `build.sh` | Ant, Gradle, Meson, and the shell entry |
 | `tests/test-cpp-about.sh` | About page | Identity, the host check, and the install location |
 
 | You do… | What it means | What you type |
@@ -38,7 +38,7 @@ This file owns how the program is checked. The named check is a full-program che
 
 Allowed:
 
-1. `./build.sh build` compiles every `src/main/cpp/*.cpp` file. The log-file check compiles one binary with `g++` and does not run `./build.sh`, because sourcing `project.sh` installs apt packages.
+1. `./build.sh build` compiles every `src/main/cpp/*.cpp` file. The log-file check compiles one binary with `g++` and does not run `./build.sh`, because reading `project.sh` with `.` runs its `install` function, which installs apt packages.
 2. A manual run with `DEBUG=1`, `--debug`, `--quiet`, `--json`, `help`, or the verbs `test`, `list`, and `show`.
 3. The single-binary log-file check in §2.1.
 4. The TP ids below. A TP id stays todo until that check has been run.
@@ -50,6 +50,8 @@ There is no GTK object and no WebKit object to test.
 |-------|-------|------|
 | TP-CPP-ANT | requirement-cpp-ant | `build.xml` loads `PRJ` from `project.ini` with fallback `cpp-logger`. Target hosts are Windows, macOS, and Linux with glibc, uClibc, or musl. Linux splits `pkg-config --cflags` and `pkg-config --libs` for `glib-2.0`. A `.cpp` file uses `-std=c++17 -Wall -Wextra -g -O2`. A `.c` file in the same link uses `-std=c11 -Wall -Wextra -g -O2`. The link writes `target/exe/debug/${PRJ}`. `run` depends on `build`. A generated `project.sh` exports `SRC_C` and `SRC_CPP` |
 | TP-CPP-ANT-STYLE | requirement-cpp-ant-coding-style | The header banner titles `build.xml - CIAO DEFENSIVE EDITION`. Each target has `Purpose`, `Parameters`, `Dependencies`, `Why This Design`, `CIAO Principles Applied`, and `Protection Rule` in that order. Well-known verbs keep `build`, `compile`, `clean`, `install`, `run`, `prepare`, `make`, `build-windows`, and `build-macos`. The project name in a target is `${app.name}` |
+| TP-CPP-BUILD-SH | requirement-cpp-build-sh | `build.sh` and `project.sh` start with `#!/bin/sh`. `build.sh` contains `. ./project.sh` and does not contain `source ./project.sh`. Neither file contains `[[`, `#!/bin/bash`, or `#!/usr/bin/env bash`. `build.sh` has a line `set -e`. Gradle runs `project.sh` with `sh`. The Ant generator writes `#!/bin/sh`. `sh -n` accepts both scripts |
+| TP-CPP-BUILD-SH-STYLE | requirement-cpp-build-sh-coding-style | `build.sh` defines `build_install_deps`, `build_place_binary`, `build_install_local`, `build_install_global`, `build_clean`, and `build_link`. Above each function, `GENERAL PURPOSE:`, `CIAO PRINCIPLES APPLIED:`, and `Last reviewed:` appear in that order. Those three labels also head the file, so each appears at least seven times. No bare `build()`, `clean()`, `install()`, `main()`, `help()`, `install_deps()`, `install_local()`, `install_global()`, or `place_built_binary()`. The `case` keeps `install|deps`, `install-local`, `install-global`, `clean`, and `build|""|simple`. No `out_info`, `out_warn`, `out_die`, or `out_text`. `project.sh` still defines `apt_install`, `apt_uninstall`, and `install` |
 | TP-CPP-DEPENDENCIES | requirement-cpp-dependencies | `pkg-config --exists glib-2.0` succeeds, and both builds request that module and do not request GTK or WebKitGTK |
 | TP-CPP-GRADLE | requirement-cpp-gradle | `build.gradle` loads `PRJ` from `project.ini` with fallback `cpp-logger`. Target hosts are Windows, macOS, and Linux with glibc, uClibc, or musl. Linux splits `pkg-config --cflags` and `pkg-config --libs` for `glib-2.0`. `CppCompile` adds `-std=c++17 -Wall -Wextra -g -O2`. `linkDebug` writes `target/exe/debug/${PRJ}`. `run` depends on `assemble`. A generated `project.sh` exports `SRC_C` and `SRC_CPP` |
 | TP-CPP-GRADLE-STYLE | requirement-cpp-gradle-coding-style | The header banner titles `cpp-logger build.gradle`. Each function and product task has `Purpose`, `Parameters`, `Dependencies`, `Why This Design`, `CIAO Principles Applied`, and `Protection Rule` in that order. Well-known verbs keep `help`, `tasks`, `properties`, `dependencies`, `clean`, `assemble`, `build`, and `check`. Product tasks are `run`, `scriptVersion`, `installDependencies`, `buildWindows`, and `buildMac` |
@@ -58,7 +60,7 @@ There is no GTK object and no WebKit object to test.
 | TP-CPP-LOGGER-FOLDER | requirement-cpp-logger-folder and requirement-cpp-logger | §2.1. One binary. `test --home /tmp --log-datestamp 20261003` writes `/tmp/.app/cpp-logger/log/cpp-logger-20261003.log`. `test --prefix /tmp` with the same stamp writes `/tmp/var/cpp-logger/log/cpp-logger-20261003.log` |
 | TP-CPP-LOG-VERBS | requirement-cpp-logger | §2.2. `list` prints the dated names. `show` prints one file. A missing switch, a short stamp, a second purpose verb, and a missing file each exit 1 |
 | TP-CPP-ABOUT | requirement-cpp-about | §2.5. One binary. `about` prints the identity block, the host-check labels, and the install location. The page creates no log directory and no cache directory |
-| TP-CPP-OOP | requirement-cpp-oop | §2.8. `logger.h` declares `class Logger`. `main.cpp` contains `Logger logger(argc, argv);` and declares no second type. The `logger_*` names forward to that object |
+| TP-CPP-OOP | requirement-cpp-oop | §2.8. `logger.h` declares `class Logger`. `main.cpp` constructs it with the five arguments in `requirement-cpp-logger.md` §2.0 and declares no second type. The `logger_*` names forward to that object. The 2026-11-10 suite proved `Logger logger(argc, argv);` only. The 2026-11-11 suite proves the five-argument constructor |
 
 ### 2.0 Scratch paths and the login home
 
@@ -90,46 +92,48 @@ The script is `tests/test-logger-folder.sh`. The filled checklist is `2026-10-03
 
 1. Compile one binary the same way as §2.1. The binary is `/tmp/cpp-logger-verb-work/cpp-logger`.
 2. `list --home /tmp` with `HOME` and `PREFIX` removed prints no names and does not create `/tmp/.app/cpp-logger`.
-3. `test --home /tmp --log-datestamp 20261002 --quiet` and `test --home /tmp --log-datestamp 20261003 --quiet` create two files. `list --home /tmp` prints `cpp-logger-20261002.log` and then `cpp-logger-20261003.log`. A `notes.txt` file and a directory named `extra.log` in that directory are omitted.
-4. `show --home /tmp --log-datestamp 20261003` prints the contents of that file, including `test log`. `show` with a datestamp that has no file exits 1. `list` and `show` do not change the file. `--quiet` still prints the names and the file. `list --json` prints one object whose `files` array is `cpp-logger-20261002.log` then `cpp-logger-20261003.log`. `show --json` prints one object whose `content` includes `test log` and whose text is not the raw file.
-5. `list --prefix /tmp` before a prefix file exists prints no names. After `test --prefix /tmp --log-datestamp 20261003 --quiet`, `list --prefix /tmp` prints `cpp-logger-20261003.log` and `show --prefix /tmp --log-datestamp 20261003` prints that file. `list` without a directory switch exits 1 with `test purpose command requires --prefix or --home`. A short `--log-datestamp` exits 1 with `--log-datestamp requires YYYYMMDD`. A missing stamp on `show` exits 1 with `test purpose command requires --log-datestamp YYYYMMDD`. `test list` exits 1. `--prefix` wins over a different `--home`. `PREFIX` is ignored. A missing file exits 1 with `cannot read log file`. When the log path is a file instead of a directory, `list` exits 1 with `cannot read log directory`.
+3. Two `test --home /tmp --quiet` runs use yesterday and today as `--log-datestamp`. `list --home /tmp` prints `cpp-logger-<yesterday>.log` and then `cpp-logger-<today>.log`. A `notes.txt` file and a directory named `extra.log` in that directory are omitted. Both stamps stay inside the 7-day window, so the second log call does not delete the first file.
+4. `show --home /tmp` for today prints the contents of that file, including `test log`. `show` with datestamp `20261004` exits 1. `list` and `show` do not change the file. `--quiet` still prints the names and the file. `list --json` prints one object whose `files` array is yesterday then today. `show --json` prints one object whose `content` includes `test log` and whose text is not the raw file.
+5. `list --prefix /tmp` before a prefix file exists prints no names. After `test --prefix /tmp` with today's stamp and `--quiet`, `list --prefix /tmp` prints `cpp-logger-<today>.log` and `show --prefix /tmp` for that stamp prints that file. `list` without a directory switch exits 1 with `test purpose command requires --prefix or --home`. A short `--log-datestamp` exits 1 with `--log-datestamp requires YYYYMMDD`. A missing stamp on `show` exits 1 with `test purpose command requires --log-datestamp YYYYMMDD`. `test list` exits 1. `--prefix` wins over a different `--home`. `PREFIX` is ignored. A missing file exits 1 with `cannot read log file`. When the log path is a file instead of a directory, `list` exits 1 with `cannot read log directory`.
 
 ### 2.3 Run boundary
 
 This check is `tests/test-run-boundary.sh`. The filled checklist is `2026-11-09-checklist-run-boundary.md`. It uses the literal directory `/tmp` only. A normal run is started with `HOME` and `PREFIX` removed, so it does not write the login log file. Cleanup deletes `/tmp/.app/cpp-logger`, `/tmp/var/cpp-logger`, those parents when empty, and `/tmp/cpp-logger-boundary-work`.
 
 1. Compile one binary the same way as §2.1. The binary is `/tmp/cpp-logger-boundary-work/cpp-logger`.
-2. `about` exits 0 and prints `cpp-logger 1.1.1` and `No database. No configuration file.`. `help` prints `about`. Neither command creates `/tmp/.app/cpp-logger`.
-3. A normal run with no flags prints no human log line. `--verbose` prints `Starting cpp-logger 1.1.1` and `Finished cpp-logger 1.1.1` and does not print `component main start`.
-4. `--debug` prints `switch --debug`, `component main start`, `component main end`, `Starting cpp-logger 1.1.1`, and `Finished cpp-logger 1.1.1`. It does not print `switch --quiet`. `--debug --quiet` prints no human log line. `--debug --json` prints a JSON object whose message is `switch --debug` and does not print the human line.
+2. `about` exits 0 and prints `cpp-logger 1.1.2` and `No database. No configuration file.`. `help` prints `about`. Neither command creates `/tmp/.app/cpp-logger`.
+3. A normal run with no flags prints no human log line. `--verbose` prints `Starting cpp-logger 1.1.2` and `Finished cpp-logger 1.1.2` and does not print `component main start`.
+4. `--debug` prints `switch --debug`, `component main start`, `component main end`, `Starting cpp-logger 1.1.2`, and `Finished cpp-logger 1.1.2`. It does not print `switch --quiet`. `--debug --quiet` prints no human log line. `--debug --json` prints a JSON object whose message is `switch --debug` and does not print the human line.
 5. `test --home /tmp --log-datestamp 20261003 --debug --quiet` stores `switch --debug`, `switch --quiet`, `switch --home /tmp`, `switch --log-datestamp 20261003`, `component main start`, `component main end`, and `test log`. It does not store `Starting cpp-logger`.
 
-### 2.4 Ant, Gradle, and Meson
+### 2.4 Ant, Gradle, Meson, and build.sh
 
-This check is `tests/test-cpp-builds.sh`. The filled checklist is `2026-11-10-checklist-cpp-build.md`. It reads `build.xml`, `build.gradle`, and `meson.build`. It runs `ant compile` and `gradle assemble --offline`. It does not run `meson` or a package install. It does not call `mktemp`. It does not read, assign, or delete `HOME`. The child is started with `HOME` removed. Logs are `/tmp/cpp-logger-ant-check.log` and `/tmp/cpp-logger-gradle-check.log`, and the script deletes those two files.
+This check is `tests/test-cpp-builds.sh`. The filled checklist is `2026-11-10-checklist-cpp-build.md`. It reads `build.xml`, `build.gradle`, `meson.build`, `build.sh`, and `project.sh`. It runs `ant compile` and `gradle assemble --offline`. It does not run `./build.sh`, `meson`, or a package install. It does not call `mktemp`. It does not read, assign, or delete `HOME`. The child is started with `HOME` removed. Logs are `/tmp/cpp-logger-ant-check.log` and `/tmp/cpp-logger-gradle-check.log`, and the script deletes those two files.
 
 1. TP-CPP-ANT and TP-CPP-ANT-STYLE read `build.xml`. `ant compile` must exit 0. It must report `Check src/main/c: absent. Contributes no files.` and `Check src/main/cpp: present`. It must not create `src/main/c` and must not change `project.sh`.
 2. TP-CPP-GRADLE and TP-CPP-GRADLE-STYLE read `build.gradle`. `gradle assemble --offline` must exit 0 and must report the same two check lines.
 3. TP-CPP-MESON and TP-CPP-MESON-STYLE read `meson.build`.
 4. TP-CPP-DEPENDENCIES runs `pkg-config --exists glib-2.0` and reads `build.sh` and `meson.build` for `glib-2.0`. Those files do not request `gtk+-3.0` or `webkit2gtk-4.1`.
-5. Each id stays todo until that id's checks in the script print no `[FAIL]` line. On 2026-11-10 the script printed `PASS cpp builds` and exited 0. TP-CPP-ANT, TP-CPP-ANT-STYLE, TP-CPP-GRADLE, TP-CPP-GRADLE-STYLE, TP-CPP-MESON, TP-CPP-MESON-STYLE, and TP-CPP-DEPENDENCIES are pass.
+5. TP-CPP-BUILD-SH reads the first line of `build.sh` and of `project.sh`. Both are `#!/bin/sh`. `build.sh` contains `. ./project.sh` and does not contain `source ./project.sh`. Neither file contains `[[`, `#!/bin/bash`, or `#!/usr/bin/env bash`. `build.sh` has a line `set -e`. `build.gradle` runs `project.sh` with `sh`. `build.xml` writes `#!/bin/sh`. `sh -n build.sh` and `sh -n project.sh` both succeed.
+6. TP-CPP-BUILD-SH-STYLE reads `build.sh`. The functions are `build_install_deps`, `build_place_binary`, `build_install_local`, `build_install_global`, `build_clean`, and `build_link`. Above each function, `GENERAL PURPOSE:`, `CIAO PRINCIPLES APPLIED:`, and `Last reviewed:` appear in that order. Those three labels also head the file, so each appears at least seven times. A bare `build()`, `clean()`, `install()`, `main()`, `help()`, `install_deps()`, `install_local()`, `install_global()`, or `place_built_binary()` is absent. The `case` still has `install|deps`, `install-local`, `install-global`, `clean`, and `build|""|simple`. The script does not contain `out_info`, `out_warn`, `out_die`, or `out_text`. `project.sh` still defines `apt_install`, `apt_uninstall`, and `install`.
+7. Each id stays todo until that id's checks in the script print no `[FAIL]` line. On 2026-11-10 the script printed `PASS cpp builds` and exited 0. TP-CPP-ANT, TP-CPP-ANT-STYLE, TP-CPP-GRADLE, TP-CPP-GRADLE-STYLE, TP-CPP-MESON, TP-CPP-MESON-STYLE, TP-CPP-DEPENDENCIES, TP-CPP-BUILD-SH, and TP-CPP-BUILD-SH-STYLE are pass.
 
 ### 2.5 About page
 
 This check is `tests/test-cpp-about.sh`. The filled checklist is `2026-11-10-checklist-cpp-about.md`. It uses the literal directory `/tmp` only. The child is started with `HOME` and `PREFIX` removed. The script does not read, assign, or delete `HOME`. Cleanup deletes `/tmp/.app/cpp-logger`, `/tmp/.app` when that directory is empty, and `/tmp/cpp-logger-about-work`.
 
 1. Compile one binary the same way as §2.1. The binary is `/tmp/cpp-logger-about-work/cpp-logger`. The check runs as a normal user.
-2. `about` exits 0. The page starts with `cpp-logger 1.1.1`, the description, `Domain: No database. No configuration file.`, `Runtime tools: none`, and `Entry points: cpp-logger`. A blank line follows. The host check names `g++`, `C++17`, the `uname` system and machine, and the running binary. The stamp ends `.000000`. Two spaces sit before `[CHECK SYSTEM]:`. A blank line follows the host check. The next block is `Install location`.
+2. `about` exits 0. The page starts with `cpp-logger 1.1.2`, the description, `Domain: No database. No configuration file.`, `Runtime tools: none`, and `Entry points: cpp-logger`. A blank line follows. The host check names `g++`, `C++17`, the `uname` system and machine, and the running binary. The stamp ends `.000000`. Two spaces sit before `[CHECK SYSTEM]:`. A blank line follows the host check. The next block is `Install location`.
 3. With `HOME` removed, `Cache folder (1st fallback)`, `Cache folder (2nd fallback)`, and `Persistence storage` stay on the page and their values are empty. The preferred cache line is `/dev/shm/cache/cache-cpp-logger`. The local probe is `Local install: not found`. With `PREFIX` removed, the global probe uses `/usr/local/bin/cpp-logger` and the value is this build's version when that file is a regular executable, otherwise `not found`. `Running from` is the running binary. The run does not create the preferred cache directory and does not create `/tmp/.app/cpp-logger`.
 4. The page does not contain Python, conda, pyenv, a star-box install sentence, `properly installed`, a Repository row, or an Install channel row. `--quiet about` still prints the host check and `Install location`. `--json about`, `about --json`, and `JSON=1` each print one JSON object and do not print the host check or `Install location`.
 
 ### 2.6 Logger portability
 
-This check is `tests/test-cpp-logger-portable.sh`. It reads `PRJ` from `project.ini` and `PROJECT_NAME` from `src/main/cpp/project.h` and requires those strings to match. `VERSION` matches the triple from `VERSION_MAJOR`, `VERSION_MINOR`, and `VERSION_PATCH`. `LOG_COMPONENT` is `main`. Formats in `src/main/cpp/logger.cpp` do not paste `/var/<name>`, `.app/<name>`, or `cache-<name>`. `help` prints the name. `test --home /tmp --log-datestamp 20261003` writes `/tmp/.app/<name>/log/<name>-20261003.log`. The check does not build a second project. `TP-CPP-LOGGER-PORTABLE` is pass. The suite exited 0 on 2026-11-10.
+This check is `tests/test-cpp-logger-portable.sh`. It reads `PRJ` from `project.ini` and `PROJECT_NAME` from `src/main/cpp/project.h` and requires those strings to match. `VERSION` matches the triple from `VERSION_MAJOR`, `VERSION_MINOR`, and `VERSION_PATCH`. `LOG_COMPONENT` is `main`. Formats in `src/main/cpp/logger.cpp` do not paste `/var/<name>`, `.app/<name>`, or `cache-<name>`. `help` prints the name. `test --home /tmp --log-datestamp 20261003` writes `/tmp/.app/<name>/log/<name>-20261003.log`. The check does not build a second project. `TP-CPP-LOGGER-PORTABLE` is pass. The suite exited 0 on 2026-11-10 and is run again for release 1.1.2.
 
 ### 2.7 Log retention
 
-This check is `tests/test-cpp-log-retention.sh`. It plants names under literal directories in `/tmp`. It does not call `mktemp` or `mkstemp`. It does not read, assign, or delete `HOME`. Today is frozen at `20261110`. Count 7 stays a plain file. Count 8 is one `tar.gz` package and the plain file is gone. Count 30 is one package. Count 31 is gone. A name that is not a dated log stays. A failed `tar` leaves the plain file and leaves no partial package. `test`, `list`, `show`, `help`, and `about` do not archive and do not delete. `show` of a packaged day exits 1 with `cannot read log file`. `list` does not print a package. `TP-CPP-LOG-RETENTION` is pass. The suite exited 0 on 2026-11-10. The checks in §2.1 and §2.2 still only choose a stamp and read it.
+This check is `tests/test-cpp-log-retention.sh`. It plants names under literal directories in `/tmp`. It does not call `mktemp` or `mkstemp`. It does not read, assign, or delete `HOME`. The driver freezes today at `20261110`. Count 7 stays a plain file. Count 8 is one `tar.gz` package and the plain file is gone. Count 30 is one package. Count 31 is gone. A name that is not a dated log stays. A failed `tar` leaves the plain file and leaves no partial package. `help`, `about`, `list`, and `show` leave `20261001` in place. A following `test --prefix` with stamp `20261103` removes `20261001` and leaves `20261103.log` as a plain file. `show` of a packaged day exits 1 with `cannot read log file`. `list` does not print a package. `TP-CPP-LOG-RETENTION` is pass. The suite exited 0 on 2026-11-10 for the frozen driver and is run again on 2026-11-11 for the `test` log call.
 
 ### 2.8 Logger class
 
@@ -137,11 +141,11 @@ This check is `tests/test-cpp-oop.sh`. It reads `src/main/cpp/logger.h`, `src/ma
 
 1. `logger.h` declares `class Logger` once, with the members and the methods collected in `requirement-cpp-oop.md` §2.3, including the static pointer `logger_active` and the private static method `logger_filename_cmp`.
 2. `logger.cpp` defines `Logger::Logger` and `Logger::` for each collected function. `va_copy` stays in `logger_log`.
-3. `main.cpp` contains `Logger logger(argc, argv);` and does not declare a second type.
+3. `main.cpp` parses `argc` and `argv`, then constructs `Logger` with the five arguments in `requirement-cpp-logger.md` §2.0, and does not declare a second type. The call is `Logger logger(PROJECT_NAME, logdir, basedir, quiet, NULL);`. The 1.1.1 call `Logger logger(argc, argv);` is not this check.
 4. A function whose only job is to return a `Logger` is absent.
 5. The `logger_*` C names forward to that object. Unbound `logger_maintain_directory` uses a short-lived object and does not print.
 
-On 2026-11-10 the script printed `PASS cpp oop` and exited 0. TP-CPP-OOP is pass. The seven existing suites also exited 0 on that source.
+On 2026-11-10 the script printed `PASS cpp oop` and exited 0 for `Logger logger(argc, argv);`. That run is not this pass. On 2026-11-11 the same script proves the five-argument constructor. TP-CPP-OOP is pass for that constructor.
 
 ## 3. Protection rule
 
@@ -184,5 +188,5 @@ Future editors must not mark a TP id done in `docs/reviews/test-plan.md` until t
 | `2026-11-10-checklist-cpp-build.md` | Filled checklist for those three build files |
 | `docs/reviews/requirement-test-matrix.md` | Requirement to TP map |
 
-**Last updated**: 2026-11-10
+**Last updated**: 2026-11-11
 **Owner**: Tests

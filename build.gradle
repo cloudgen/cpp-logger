@@ -34,7 +34,7 @@ plugins {
     id 'cpp-application'
 }
 
-def THIS_VERSION = '1.1.1'
+def THIS_VERSION = '1.1.2'
 
 // =========================================================================
 // Target host
@@ -397,7 +397,7 @@ install
 
         println "[INFO] Running dependency installation via project.sh..."
         exec {
-            commandLine 'bash', scriptFile.absolutePath
+            commandLine 'sh', scriptFile.absolutePath
         }
     }
 

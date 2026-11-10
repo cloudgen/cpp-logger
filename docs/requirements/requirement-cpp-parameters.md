@@ -14,7 +14,7 @@ This file owns every command-line flag and environment variable the binary accep
 | Box | Meaning | Example |
 |-----|---------|---------|
 | You / this login | The person who starts the program | You pass `--quiet` |
-| The other role | The `Logger` constructor | It reads argv and the environment first |
+| The other role | `logger_parse_invocation`, then the `Logger` constructor | The parse reads argv and the environment first |
 | Not this file | What a log line looks like | `requirement-cpp-logger.md` |
 
 | Includes | Excludes |
@@ -63,7 +63,7 @@ There is no `--shutdown`, no `--bookmark`, no `--config`, and no `SHUTDOWN` or `
 
 One invocation accepts one of `test`, `list`, or `show`. A second one exits 1 with `one test purpose command`.
 
-Parsing happens in the `Logger` constructor. `JSON=1` is read before the scan. `help` and `about` run after the scan, so `--json` after the verb is the same mode as `--json` before it. The C name `logger_output_init` forwards to the constructed object and does not parse again.
+`main` calls `logger_parse_invocation`, then constructs `Logger`. `JSON=1` is read before the scan. `help` and `about` run after the scan, so `--json` after the verb is the same mode as `--json` before it. The C name `logger_output_init` forwards to the constructed object and does not parse again.
 
 ### Sample code (this project)
 

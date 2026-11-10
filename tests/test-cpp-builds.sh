@@ -1,6 +1,7 @@
 #!/bin/sh
 # TP-CPP-ANT TP-CPP-ANT-STYLE TP-CPP-GRADLE TP-CPP-GRADLE-STYLE
-# TP-CPP-MESON TP-CPP-MESON-STYLE TP-CPP-DEPENDENCIES
+# TP-CPP-MESON TP-CPP-MESON-STYLE TP-CPP-DEPENDENCIES TP-CPP-BUILD-SH
+# TP-CPP-BUILD-SH-STYLE
 # Reads build.xml, build.gradle, and meson.build.
 # Runs ant compile and gradle assemble. Does not run meson or a package install.
 # Does not call mktemp. Does not read, assign, or delete HOME.
@@ -211,6 +212,121 @@ forbid TP-CPP-DEPENDENCIES build.sh 'gtk+-3.0'
 forbid TP-CPP-DEPENDENCIES build.sh 'webkit2gtk-4.1'
 forbid TP-CPP-DEPENDENCIES meson.build 'gtk+-3.0'
 forbid TP-CPP-DEPENDENCIES meson.build 'webkit2gtk-4.1'
+
+# TP-CPP-BUILD-SH
+if [ "$(head -n 1 build.sh)" != '#!/bin/sh' ]; then
+    echo "[FAIL] TP-CPP-BUILD-SH build.sh shebang"
+    fail=1
+fi
+if [ "$(head -n 1 project.sh)" != '#!/bin/sh' ]; then
+    echo "[FAIL] TP-CPP-BUILD-SH project.sh shebang"
+    fail=1
+fi
+if ! grep -F -q '. ./project.sh' build.sh; then
+    echo "[FAIL] TP-CPP-BUILD-SH build.sh does not read project.sh with ."
+    fail=1
+fi
+if grep -F -q 'source ./project.sh' build.sh; then
+    echo "[FAIL] TP-CPP-BUILD-SH build.sh uses source"
+    fail=1
+fi
+for sh_file in build.sh project.sh; do
+    if grep -F -q '[[' "$sh_file"; then
+        echo "[FAIL] TP-CPP-BUILD-SH ${sh_file} uses [["
+        fail=1
+    fi
+    if grep -F -q '#!/bin/bash' "$sh_file"; then
+        echo "[FAIL] TP-CPP-BUILD-SH ${sh_file} uses /bin/bash"
+        fail=1
+    fi
+    if grep -F -q '#!/usr/bin/env bash' "$sh_file"; then
+        echo "[FAIL] TP-CPP-BUILD-SH ${sh_file} uses /usr/bin/env bash"
+        fail=1
+    fi
+done
+if ! grep -E -q '^set -e$' build.sh; then
+    echo "[FAIL] TP-CPP-BUILD-SH build.sh has no set -e"
+    fail=1
+fi
+if ! grep -F -q "commandLine 'sh'" build.gradle; then
+    echo "[FAIL] TP-CPP-BUILD-SH gradle does not run project.sh with sh"
+    fail=1
+fi
+if ! grep -F -q '#!/bin/sh' build.xml; then
+    echo "[FAIL] TP-CPP-BUILD-SH build.xml generator is not /bin/sh"
+    fail=1
+fi
+if ! sh -n build.sh; then
+    echo "[FAIL] TP-CPP-BUILD-SH sh -n build.sh"
+    fail=1
+fi
+if ! sh -n project.sh; then
+    echo "[FAIL] TP-CPP-BUILD-SH sh -n project.sh"
+    fail=1
+fi
+
+# TP-CPP-BUILD-SH-STYLE
+for build_fn in build_install_deps build_place_binary build_install_local build_install_global build_clean build_link; do
+    if ! grep -E -q "^${build_fn}\\(\\)" build.sh; then
+        echo "[FAIL] TP-CPP-BUILD-SH-STYLE missing ${build_fn}"
+        fail=1
+    fi
+    if ! awk -v fn="$build_fn" '
+        $0 ~ ("^" fn "\\(\\)") { def = NR }
+        { lines[NR] = $0 }
+        END {
+            if (def == 0) exit 2
+            g = 0
+            c = 0
+            r = 0
+            start = def - 40
+            if (start < 1) start = 1
+            for (i = start; i < def; i++) {
+                if (lines[i] ~ /GENERAL PURPOSE:/) g = i
+                if (lines[i] ~ /CIAO PRINCIPLES APPLIED:/) c = i
+                if (lines[i] ~ /Last reviewed:/) r = i
+            }
+            if (g == 0 || c == 0 || r == 0 || g >= c || c >= r) exit 1
+        }
+    ' build.sh; then
+        echo "[FAIL] TP-CPP-BUILD-SH-STYLE header order for ${build_fn}"
+        fail=1
+    fi
+done
+for bare_fn in build clean install main help install_deps install_local install_global place_built_binary; do
+    if grep -E -q "^${bare_fn}\\(\\)" build.sh; then
+        echo "[FAIL] TP-CPP-BUILD-SH-STYLE bare ${bare_fn}()"
+        fail=1
+    fi
+done
+purpose_count=$(grep -F -c 'GENERAL PURPOSE:' build.sh || true)
+principles_count=$(grep -F -c 'CIAO PRINCIPLES APPLIED:' build.sh || true)
+reviewed_count=$(grep -F -c 'Last reviewed:' build.sh || true)
+if [ "${purpose_count}" -lt 7 ] || [ "${principles_count}" -lt 7 ] || [ "${reviewed_count}" -lt 7 ]; then
+    echo "[FAIL] TP-CPP-BUILD-SH-STYLE function headers"
+    fail=1
+fi
+need TP-CPP-BUILD-SH-STYLE build.sh 'install|deps)'
+need TP-CPP-BUILD-SH-STYLE build.sh 'install-local)'
+need TP-CPP-BUILD-SH-STYLE build.sh 'install-global)'
+need TP-CPP-BUILD-SH-STYLE build.sh 'clean)'
+need TP-CPP-BUILD-SH-STYLE build.sh 'build|""|simple)'
+forbid TP-CPP-BUILD-SH-STYLE build.sh 'out_info'
+forbid TP-CPP-BUILD-SH-STYLE build.sh 'out_warn'
+forbid TP-CPP-BUILD-SH-STYLE build.sh 'out_die'
+forbid TP-CPP-BUILD-SH-STYLE build.sh 'out_text'
+if ! grep -E -q '^apt_install\(\)' project.sh; then
+    echo "[FAIL] TP-CPP-BUILD-SH-STYLE project.sh lost apt_install"
+    fail=1
+fi
+if ! grep -E -q '^apt_uninstall\(\)' project.sh; then
+    echo "[FAIL] TP-CPP-BUILD-SH-STYLE project.sh lost apt_uninstall"
+    fail=1
+fi
+if ! grep -E -q '^install\(\)' project.sh; then
+    echo "[FAIL] TP-CPP-BUILD-SH-STYLE project.sh lost install"
+    fail=1
+fi
 
 # Live compile. A missing src/main/c must be reported and must not fail the build.
 ant_log=/tmp/cpp-logger-ant-check.log

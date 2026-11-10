@@ -2,7 +2,7 @@
 
 **file**: docs/requirements/requirement-cpp-coding-style.md
 **Status**: Active
-**Updated**: 2026-11-10
+**Updated**: 2026-11-11
 
 ## 1. Purpose
 
@@ -88,46 +88,28 @@ There is no GTK signal callback in this product. Do not add `g_signal_connect` r
 
 The logger header is included from C++. It declares `class Logger`. It keeps C linkage for the `logger_*` names, and those names forward to the object `main` constructed. `logger_log` takes `va_list` by value. The body in `src/main/cpp/logger.cpp` uses `va_copy` before `g_strdup_vprintf`. That body is the sample in `requirement-cpp-logger.md`.
 
-Sample code (this project), from `src/main/cpp/logger.h`:
+Sample code (this project), from `src/main/cpp/logger.h`. The enumeration includes `LOGGER_LEVEL_CRITICAL`. The constructor is the five-argument form in `requirement-cpp-logger.md` §2.0. The C names take the component first.
 
 ```cpp
-#ifndef LOGGER_H
-#define LOGGER_H
-
-#include <stdbool.h>
-#include <stdarg.h>
-#include <glib.h>
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 typedef enum {
     LOGGER_LEVEL_INFO,
     LOGGER_LEVEL_WARNING,
     LOGGER_LEVEL_ERROR,
-    LOGGER_LEVEL_DEBUG,
-    LOGGER_LEVEL_FATAL
+    LOGGER_LEVEL_CRITICAL,
+    LOGGER_LEVEL_FATAL,
+    LOGGER_LEVEL_DEBUG
 } LoggerOutputLevel;
 
-void logger_log(LoggerOutputLevel level, const char *format, va_list ap);
-void logger_output_init(int argc, char **argv);
-int logger_is_test_verb(void);
-void logger_set_quiet(bool quiet);
-bool logger_get_quiet(void);
-bool logger_get_debug(void);
-void logger_info(const char *format, ...);
-void logger_warn(const char *format, ...);
-void logger_error(const char *format, ...);
-void logger_fatal(const char *format, ...);
-void logger_debug(const char *format, ...);
-void logger_print_help(void);
+Logger(const char *logname, const char *logdir, const char *basedir, bool is_quiet, LoggerClock clock);
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif
+void logger_parse_invocation(int argc, char **argv, const char **logdir, const char **basedir, bool *quiet);
+void logger_log(LoggerOutputLevel level, const char *component, const char *format, va_list ap);
+void logger_info(const char *component, const char *format, ...);
+void logger_warn(const char *component, const char *format, ...);
+void logger_error(const char *component, const char *format, ...);
+void logger_critical(const char *component, const char *format, ...);
+void logger_fatal(const char *component, const char *format, ...);
+void logger_debug(const char *component, const char *format, ...);
 ```
 
 A C++ type that the logger header names, including `LoggerOutputLevel`, may sit inside that guard. A C++ type that no C caller names does not need the guard.
@@ -147,7 +129,7 @@ Gradle task banners are `requirement-cpp-gradle-coding-style.md`. Ant target ban
 
 ## Output and logging
 
-- Product code calls `logger_info()`, `logger_warn()`, `logger_error()`, `logger_fatal()`, and `logger_debug()` only for lines.
+- Product code calls `logger_info()`, `logger_warn()`, `logger_error()`, `logger_critical()`, `logger_fatal()`, and `logger_debug()` only for lines. The level is the enumeration in `requirement-cpp-logger.md`.
 - Quiet mode is `logger_set_quiet(bool)` and `logger_get_quiet()`. Debug is `logger_get_debug()`. There is no `logger_set_debug`.
 - `printf`, `fprintf`, `g_print`, and `perror` are allowed inside `logger.cpp` only.
 - The human line is `requirement-cpp-logger.md`. Quiet is `requirement-cpp-output.md`. JSON mode is `requirement-cpp-json.md`. `DEBUG` is `requirement-cpp-debug-mode.md`. Flag names are `requirement-cpp-parameters.md`.
@@ -165,5 +147,5 @@ Gradle task banners are `requirement-cpp-gradle-coding-style.md`. Ant target ban
 
 ---
 
-**Last Updated**: 2026-11-10
+**Last Updated**: 2026-11-11
 **Owner**: CIAO-Lite Style Guide

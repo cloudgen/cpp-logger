@@ -28,6 +28,261 @@
    Protection Rule: requirement-cpp-oop.md. This pointer is not a factory. */
 Logger *Logger::logger_active = NULL;
 
+struct LoggerInvocation {
+    int purpose;
+    int page;
+    int verbose;
+    int saw_quiet;
+    int saw_json;
+    int saw_debug;
+    int saw_verbose;
+    int debug;
+    int json;
+    int quiet;
+    int reader;
+    const char *prefix;
+    const char *home;
+    const char *datestamp;
+    char basedir[4096];
+};
+
+static LoggerInvocation g_parsed;
+
+static int invocation_datestamp_ok(const char *text)
+{
+    if (text == NULL || strlen(text) != 8) {
+        return 0;
+    }
+    for (int i = 0; i < 8; i++) {
+        if (text[i] < '0' || text[i] > '9') {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+static gchar *json_escape_text(const char *text)
+{
+    GString *out = g_string_new("");
+    const unsigned char *cursor = (const unsigned char *)(text ? text : "");
+
+    for (; *cursor != '\0'; cursor++) {
+        switch (*cursor) {
+            case '\\':
+                g_string_append(out, "\\\\");
+                break;
+            case '"':
+                g_string_append(out, "\\\"");
+                break;
+            case '\n':
+                g_string_append(out, "\\n");
+                break;
+            case '\r':
+                g_string_append(out, "\\r");
+                break;
+            case '\t':
+                g_string_append(out, "\\t");
+                break;
+            default:
+                if (*cursor < 0x20) {
+                    g_string_append_printf(out, "\\u%04x", *cursor);
+                } else {
+                    g_string_append_c(out, (gchar)*cursor);
+                }
+                break;
+        }
+    }
+    return g_string_free(out, FALSE);
+}
+
+static const char *invocation_command_name(void)
+{
+    if (g_parsed.page == 1) {
+        return "help";
+    }
+    if (g_parsed.page == 2) {
+        return "about";
+    }
+    if (g_parsed.purpose == 1) {
+        return "test";
+    }
+    if (g_parsed.purpose == 2) {
+        return "list";
+    }
+    if (g_parsed.purpose == 3) {
+        return "show";
+    }
+    return "";
+}
+
+static void invocation_die(const char *message)
+{
+    const char *name = invocation_command_name();
+
+    if (g_parsed.json && name[0] != '\0') {
+        gchar *escaped = json_escape_text(message ? message : "");
+
+        g_print("{\"command\":\"%s\",\"error\":\"%s\"}\n", name, escaped);
+        g_free(escaped);
+        exit(1);
+    }
+    g_printerr("%s\n", message ? message : "");
+    exit(1);
+}
+
+static void join_base_or_exit(char *out, size_t out_size, const char *head, const char *tail)
+{
+    gchar *trimmed;
+    gsize length;
+    gint wrote;
+
+    if (head == NULL || head[0] == '\0' || strchr(head, '\n') != NULL || strchr(head, '\r') != NULL) {
+        g_printerr("logger folder directory is empty or not one line\n");
+        exit(1);
+    }
+    trimmed = g_strdup(head);
+    length = strlen(trimmed);
+    while (length > 1 && trimmed[length - 1] == '/') {
+        trimmed[--length] = '\0';
+    }
+    if (strcmp(trimmed, "/") == 0) {
+        wrote = g_snprintf(out, out_size, "/%s", tail);
+    } else {
+        wrote = g_snprintf(out, out_size, "%s/%s", trimmed, tail);
+    }
+    g_free(trimmed);
+    if (wrote < 0 || (size_t)wrote >= out_size) {
+        g_printerr("logger folder path is too long\n");
+        exit(1);
+    }
+}
+
+static const char *invocation_take_value(int argc, char **argv, int *index, const char *flag)
+{
+    char message[256];
+
+    if (*index + 1 >= argc || argv[*index + 1][0] == '\0') {
+        g_snprintf(message, sizeof message, "missing value for %s", flag);
+        invocation_die(message);
+    }
+    *index += 1;
+    return argv[*index];
+}
+
+static void invocation_set_purpose(int purpose)
+{
+    if (g_parsed.purpose != 0 || g_parsed.page != 0) {
+        invocation_die("one test purpose command");
+    }
+    g_parsed.purpose = purpose;
+}
+
+static void invocation_set_page(int page)
+{
+    if (g_parsed.page != 0 || g_parsed.purpose != 0) {
+        invocation_die("one test purpose command");
+    }
+    g_parsed.page = page;
+}
+
+static int env_is_one(const char *name)
+{
+    const char *value = getenv(name);
+
+    if (value == NULL) {
+        return 0;
+    }
+    return atoi(value) == 1 || strcmp(value, "1") == 0;
+}
+
+/* Purpose: read argc and argv before any Logger exists.
+   A rejected command exits here, so construction does not create a file.
+   JSON=1 is read before the scan. help and about run after the scan. */
+void logger_parse_invocation(int argc, char **argv, const char **logdir, const char **basedir, bool *quiet)
+{
+    const char *debug_env;
+    char tail[256];
+    const char *dir;
+
+    memset(&g_parsed, 0, sizeof g_parsed);
+    if (env_is_one("JSON")) {
+        g_parsed.json = 1;
+    }
+    if (env_is_one("QUIET")) {
+        g_parsed.quiet = 1;
+    }
+    debug_env = getenv("DEBUG");
+    if (debug_env != NULL && debug_env[0] != '\0') {
+        g_parsed.debug = 1;
+    }
+
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--quiet") == 0) {
+            g_parsed.saw_quiet = 1;
+            g_parsed.quiet = 1;
+        } else if (strcmp(argv[i], "--json") == 0) {
+            g_parsed.saw_json = 1;
+            g_parsed.json = 1;
+        } else if (strcmp(argv[i], "--debug") == 0) {
+            g_parsed.saw_debug = 1;
+            g_parsed.debug = 1;
+        } else if (strcmp(argv[i], "--verbose") == 0) {
+            g_parsed.saw_verbose = 1;
+            g_parsed.verbose = 1;
+        } else if (strcmp(argv[i], "--prefix") == 0) {
+            g_parsed.prefix = invocation_take_value(argc, argv, &i, "--prefix");
+        } else if (strcmp(argv[i], "--home") == 0) {
+            g_parsed.home = invocation_take_value(argc, argv, &i, "--home");
+        } else if (strcmp(argv[i], "--log-datestamp") == 0) {
+            g_parsed.datestamp = invocation_take_value(argc, argv, &i, "--log-datestamp");
+        } else if (strcmp(argv[i], "test") == 0) {
+            invocation_set_purpose(1);
+        } else if (strcmp(argv[i], "list") == 0) {
+            invocation_set_purpose(2);
+        } else if (strcmp(argv[i], "show") == 0) {
+            invocation_set_purpose(3);
+        } else if (strcmp(argv[i], "help") == 0) {
+            invocation_set_page(1);
+        } else if (strcmp(argv[i], "about") == 0) {
+            invocation_set_page(2);
+        }
+    }
+
+    if (g_parsed.purpose != 0) {
+        if (g_parsed.prefix == NULL && g_parsed.home == NULL) {
+            invocation_die("test purpose command requires --prefix or --home");
+        }
+        if ((g_parsed.purpose == 1 || g_parsed.purpose == 3) && g_parsed.datestamp == NULL) {
+            invocation_die("test purpose command requires --log-datestamp YYYYMMDD");
+        }
+    }
+    if (g_parsed.datestamp != NULL && !invocation_datestamp_ok(g_parsed.datestamp)) {
+        invocation_die("--log-datestamp requires YYYYMMDD");
+    }
+
+    g_parsed.reader = (g_parsed.page != 0 || g_parsed.purpose == 2 || g_parsed.purpose == 3) ? 1 : 0;
+    if (g_parsed.purpose != 0) {
+        dir = g_parsed.prefix != NULL ? g_parsed.prefix : g_parsed.home;
+        if (g_snprintf(tail, sizeof tail, "%s/%s",
+                       g_parsed.prefix != NULL ? "var" : ".app",
+                       PROJECT_NAME) >= (gint)sizeof tail) {
+            g_printerr("logger folder path is too long\n");
+            exit(1);
+        }
+        join_base_or_exit(g_parsed.basedir, sizeof g_parsed.basedir, dir, tail);
+    }
+
+    if (logdir != NULL) {
+        *logdir = NULL;
+    }
+    if (basedir != NULL) {
+        *basedir = g_parsed.basedir[0] != '\0' ? g_parsed.basedir : NULL;
+    }
+    if (quiet != NULL) {
+        *quiet = g_parsed.quiet || g_parsed.json;
+    }
+}
+
 
 const char *Logger::logger_command_name(void)
 {
@@ -80,29 +335,7 @@ void Logger::logger_die(const char *message)
    Last updated: 2026-10-03 */
 void Logger::logger_join_base(char *out, size_t out_size, const char *head, const char *tail)
 {
-    gchar *trimmed;
-    gsize length;
-    gint wrote;
-
-    if (head == NULL || head[0] == '\0' || strchr(head, '\n') != NULL || strchr(head, '\r') != NULL) {
-        g_printerr("logger folder directory is empty or not one line\n");
-        exit(1);
-    }
-    trimmed = g_strdup(head);
-    length = strlen(trimmed);
-    while (length > 1 && trimmed[length - 1] == '/') {
-        trimmed[--length] = '\0';
-    }
-    if (strcmp(trimmed, "/") == 0) {
-        wrote = g_snprintf(out, out_size, "/%s", tail);
-    } else {
-        wrote = g_snprintf(out, out_size, "%s/%s", trimmed, tail);
-    }
-    g_free(trimmed);
-    if (wrote < 0 || (size_t)wrote >= out_size) {
-        g_printerr("logger folder path is too long\n");
-        exit(1);
-    }
+    join_base_or_exit(out, out_size, head, tail);
 }
 
 int Logger::logger_datestamp_ok(const char *text)
@@ -125,7 +358,7 @@ void Logger::logger_apply_base(const char *base, const char *stamp)
         exit(1);
     }
     if (g_snprintf(logger_log_path, sizeof logger_log_path, "%s/%s-%s.log",
-                   logger_folder, PROJECT_NAME, stamp) >= (gint)sizeof logger_log_path) {
+                   logger_folder, logger_name, stamp) >= (gint)sizeof logger_log_path) {
         g_printerr("log file path is too long\n");
         exit(1);
     }
@@ -368,29 +601,29 @@ void Logger::logger_log_found_switches(void)
         return;
     }
     if (logger_saw_verbose) {
-        logger_debug("switch --verbose");
+        logger_debug(LOG_COMPONENT, "switch --verbose");
     }
     if (logger_saw_quiet) {
-        logger_debug("switch --quiet");
+        logger_debug(LOG_COMPONENT, "switch --quiet");
     }
     if (logger_saw_json) {
-        logger_debug("switch --json");
+        logger_debug(LOG_COMPONENT, "switch --json");
     }
     if (logger_saw_debug) {
-        logger_debug("switch --debug");
+        logger_debug(LOG_COMPONENT, "switch --debug");
     }
     if (logger_prefix_arg != NULL) {
-        logger_debug("switch --prefix %s", logger_prefix_arg);
+        logger_debug(LOG_COMPONENT, "switch --prefix %s", logger_prefix_arg);
     }
     if (logger_home_arg != NULL) {
-        logger_debug("switch --home %s", logger_home_arg);
+        logger_debug(LOG_COMPONENT, "switch --home %s", logger_home_arg);
     }
     if (logger_datestamp_arg != NULL) {
-        logger_debug("switch --log-datestamp %s", logger_datestamp_arg);
+        logger_debug(LOG_COMPONENT, "switch --log-datestamp %s", logger_datestamp_arg);
     }
 }
 
-Logger::Logger(int argc, char **argv)
+Logger::Logger(const char *logname, const char *logdir, const char *basedir, bool is_quiet, LoggerClock clock)
     : logger_quiet_mode(false),
       logger_json_mode(false),
       debug_env_enabled(false),
@@ -407,86 +640,263 @@ Logger::Logger(int argc, char **argv)
       logger_saw_verbose(0),
       logger_pending_page(0),
       logger_retention_done(0),
-      logger_maintain_busy(0)
+      logger_maintain_busy(0),
+      logger_name(),
+      logger_old_log_path(),
+      logger_clock(NULL)
 {
-    /* argc < 0 builds an unbound object for logger_maintain_directory.
-       The retain driver has no argv for this constructor. Parsing would
-       print and could append a log. This path does not store logger_active. */
-    if (argc < 0) {
+    const char *debug_env;
+
+    /* An empty name builds an unbound object. The retain driver uses that
+       object for logger_maintain_directory. This path does not store
+       logger_active, does not create a directory, and does not write. */
+    if (logname == NULL || logname[0] == '\0') {
         return;
     }
-    logger_active = this;
-    const char *debug_env;
-    int debug_from_env;
 
-    logger_json_mode = false;
-    logger_set_quiet(false);
+    logger_store_name(logname);
+    logger_clock = clock;
+    logger_purpose = g_parsed.purpose;
+    logger_pending_page = g_parsed.page;
+    logger_verbose = g_parsed.verbose;
+    logger_saw_quiet = g_parsed.saw_quiet;
+    logger_saw_json = g_parsed.saw_json;
+    logger_saw_debug = g_parsed.saw_debug;
+    logger_saw_verbose = g_parsed.saw_verbose;
+    logger_prefix_arg = g_parsed.prefix;
+    logger_home_arg = g_parsed.home;
+    logger_datestamp_arg = g_parsed.datestamp;
+    logger_retention_done = 0;
     logger_folder[0] = '\0';
     logger_log_path[0] = '\0';
-    logger_purpose = 0;
-    logger_verbose = 0;
-    logger_prefix_arg = NULL;
-    logger_home_arg = NULL;
-    logger_datestamp_arg = NULL;
-    logger_saw_quiet = 0;
-    logger_saw_json = 0;
-    logger_saw_debug = 0;
-    logger_saw_verbose = 0;
-    logger_retention_done = 0;
+    logger_old_log_path[0] = '\0';
 
     debug_env = getenv("DEBUG");
-    debug_from_env = (debug_env != NULL && *debug_env != '\0');
-    debug_env_enabled = debug_from_env;
-
-    if (!logger_get_quiet()) {
-        const char *q = getenv("QUIET");
-        if (q && (atoi(q) == 1 || strcmp(q, "1") == 0))
-            logger_set_quiet(true);
+    debug_env_enabled = g_parsed.debug || (debug_env != NULL && debug_env[0] != '\0');
+    logger_json_mode = g_parsed.json;
+    if (!logger_json_mode && env_is_one("JSON")) {
+        logger_json_mode = true;
     }
-    if (!logger_json_mode) {
-        const char *j = getenv("JSON");
-        if (j && (atoi(j) == 1 || strcmp(j, "1") == 0))
-            logger_json_mode = true;
+    logger_set_quiet(is_quiet || g_parsed.quiet);
+    if (logger_json_mode) {
+        logger_set_quiet(true);
     }
 
-    for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "--quiet") == 0) {
-            logger_saw_quiet = 1;
-            logger_set_quiet(true);
-        } else if (strcmp(argv[i], "--json") == 0) {
-            logger_saw_json = 1;
-            logger_json_mode = true;
-        } else if (strcmp(argv[i], "--debug") == 0) {
-            logger_saw_debug = 1;
-            debug_env_enabled = true;
-        } else if (strcmp(argv[i], "--verbose") == 0) {
-            logger_saw_verbose = 1;
-            logger_verbose = 1;
-        } else if (strcmp(argv[i], "--prefix") == 0) {
-            logger_prefix_arg = logger_take_value(argc, argv, &i, "--prefix");
-        } else if (strcmp(argv[i], "--home") == 0) {
-            logger_home_arg = logger_take_value(argc, argv, &i, "--home");
-        } else if (strcmp(argv[i], "--log-datestamp") == 0) {
-            logger_datestamp_arg = logger_take_value(argc, argv, &i, "--log-datestamp");
-        } else if (strcmp(argv[i], "test") == 0) {
-            logger_set_purpose(1);
-        } else if (strcmp(argv[i], "list") == 0) {
-            logger_set_purpose(2);
-        } else if (strcmp(argv[i], "show") == 0) {
-            logger_set_purpose(3);
-        } else if (strcmp(argv[i], "help") == 0) {
-            if (logger_pending_page != 0 || logger_purpose != 0) {
-                logger_die("one test purpose command");
-            }
-            logger_pending_page = 1;
-        } else if (strcmp(argv[i], "about") == 0) {
-            if (logger_pending_page != 0 || logger_purpose != 0) {
-                logger_die("one test purpose command");
-            }
-            logger_pending_page = 2;
+    logger_resolve_paths(logdir, basedir);
+    logger_ensure_log_directory();
+    logger_active = this;
+}
+
+void Logger::logger_store_name(const char *logname)
+{
+    int internal = 0;
+    size_t used = 0;
+    char built[256];
+
+    for (const char *cursor = logname; *cursor != '\0'; cursor++) {
+        if (cursor != logname && *cursor >= 'A' && *cursor <= 'Z') {
+            internal = 1;
+            break;
         }
     }
+    if (!internal) {
+        if (g_snprintf(logger_name, sizeof logger_name, "%s", logname) >= (gint)sizeof logger_name) {
+            g_printerr("logger name is too long\n");
+            exit(1);
+        }
+        return;
+    }
+    for (const char *cursor = logname; *cursor != '\0'; cursor++) {
+        char letter = *cursor;
 
+        if (cursor != logname && letter >= 'A' && letter <= 'Z') {
+            if (used + 2 >= sizeof built) {
+                g_printerr("logger name is too long\n");
+                exit(1);
+            }
+            built[used++] = '-';
+        }
+        if (letter >= 'A' && letter <= 'Z') {
+            letter = (char)(letter - 'A' + 'a');
+        }
+        if (used + 1 >= sizeof built) {
+            g_printerr("logger name is too long\n");
+            exit(1);
+        }
+        built[used++] = letter;
+    }
+    built[used] = '\0';
+    memcpy(logger_name, built, used + 1);
+}
+
+void Logger::logger_clock_day(char *stamp, size_t stamp_size)
+{
+    time_t now;
+    struct tm *tm_ptr;
+
+    now = logger_clock != NULL ? logger_clock() : time(NULL);
+    if (now == (time_t)-1) {
+        g_strlcpy(stamp, "19700101", stamp_size);
+        return;
+    }
+    tm_ptr = localtime(&now);
+    if (tm_ptr == NULL || strftime(stamp, stamp_size, "%Y%m%d", tm_ptr) == 0) {
+        g_strlcpy(stamp, "19700101", stamp_size);
+    }
+}
+
+void Logger::logger_file_stamp(char *stamp, size_t stamp_size)
+{
+    if (logger_datestamp_arg != NULL) {
+        g_strlcpy(stamp, logger_datestamp_arg, stamp_size);
+        return;
+    }
+    logger_clock_day(stamp, stamp_size);
+}
+
+void Logger::logger_format_timestamp(char *timestamp, size_t timestamp_size)
+{
+    time_t now;
+    struct tm *tm_ptr;
+
+    now = logger_clock != NULL ? logger_clock() : time(NULL);
+    if (now == (time_t)-1) {
+        g_strlcpy(timestamp, "1970-01-01 00:00:00", timestamp_size);
+        return;
+    }
+    tm_ptr = localtime(&now);
+    if (tm_ptr == NULL || strftime(timestamp, timestamp_size, "%Y-%m-%d %H:%M:%S", tm_ptr) == 0) {
+        g_strlcpy(timestamp, "1970-01-01 00:00:00", timestamp_size);
+    }
+}
+
+void Logger::logger_apply_folder(const char *folder, const char *stamp)
+{
+    if (g_snprintf(logger_folder, sizeof logger_folder, "%s", folder) >= (gint)sizeof logger_folder) {
+        g_printerr("logger folder path is too long\n");
+        exit(1);
+    }
+    if (g_snprintf(logger_log_path, sizeof logger_log_path, "%s/%s-%s.log",
+                   logger_folder, logger_name, stamp) >= (gint)sizeof logger_log_path) {
+        g_printerr("log file path is too long\n");
+        exit(1);
+    }
+}
+
+int Logger::logger_try_env_base(const char *env_name, const char *stamp)
+{
+    const char *value;
+    char base[4096];
+    char tail[256];
+
+    value = getenv(env_name);
+    if (value == NULL || value[0] == '\0') {
+        return 0;
+    }
+    if (g_snprintf(tail, sizeof tail, ".app/%s", logger_name) >= (gint)sizeof tail) {
+        g_printerr("logger folder path is too long\n");
+        exit(1);
+    }
+    logger_join_base(base, sizeof base, value, tail);
+    logger_apply_base(base, stamp);
+    return 1;
+}
+
+void Logger::logger_resolve_paths(const char *logdir, const char *basedir)
+{
+    char stamp[16];
+    char base[4096];
+
+    logger_file_stamp(stamp, sizeof stamp);
+    if (logdir != NULL && logdir[0] != '\0') {
+        logger_apply_folder(logdir, stamp);
+        return;
+    }
+    if (basedir != NULL && basedir[0] != '\0') {
+        logger_apply_base(basedir, stamp);
+        return;
+    }
+    if (logger_try_env_base("CONDA_PREFIX", stamp)) {
+        return;
+    }
+    if (logger_try_env_base("PYENV_VIRTUAL_ENV", stamp)) {
+        return;
+    }
+    if (logger_try_env_base("VIRTUAL_ENV", stamp)) {
+        return;
+    }
+    if (geteuid() == 0) {
+        if (g_snprintf(base, sizeof base, "/var/%s", logger_name) >= (gint)sizeof base) {
+            g_printerr("logger folder path is too long\n");
+            exit(1);
+        }
+        logger_apply_base(base, stamp);
+        return;
+    }
+    logger_try_env_base("HOME", stamp);
+}
+
+void Logger::logger_ensure_log_directory(void)
+{
+    FILE *file;
+
+    if (g_parsed.reader || logger_folder[0] == '\0') {
+        return;
+    }
+    if (!g_file_test(logger_folder, G_FILE_TEST_IS_DIR)) {
+        if (g_mkdir_with_parents(logger_folder, 0755) == 0 &&
+            !logger_get_quiet() && !logger_json_mode) {
+            g_print("Created directory: %s\n", logger_folder);
+        }
+    }
+    if (logger_log_path[0] == '\0') {
+        return;
+    }
+    file = fopen(logger_log_path, "a");
+    if (file == NULL) {
+        return;
+    }
+    fputc('\n', file);
+    fclose(file);
+}
+
+void Logger::logger_note_dated_path(void)
+{
+    char today[16];
+    char using_message[4600];
+    const char *active;
+
+    if (logger_log_path[0] == '\0' || logger_folder[0] == '\0') {
+        return;
+    }
+    if (strcmp(logger_old_log_path, logger_log_path) == 0) {
+        return;
+    }
+    g_strlcpy(logger_old_log_path, logger_log_path, sizeof logger_old_log_path);
+    logger_retention_done = 1;
+    logger_clock_day(today, sizeof today);
+    active = strrchr(logger_log_path, '/');
+    active = (active != NULL) ? active + 1 : logger_log_path;
+    logger_maintain_directory(logger_folder, active, today);
+    if (!debug_env_enabled) {
+        return;
+    }
+    g_snprintf(using_message, sizeof using_message, "Using %s", logger_log_path);
+    logger_append_log_file(LOGGER_LEVEL_INFO, "logger", using_message);
+    if (logger_json_mode) {
+        gchar *escaped = logger_json_escape(using_message);
+
+        g_print("{\"timestamp\":%ld,\"level\":\"INFO\",\"message\":\"%s\"}\n",
+                (long)time(NULL),
+                escaped);
+        g_free(escaped);
+    } else if (!logger_get_quiet() && (logger_verbose || debug_env_enabled)) {
+        logger_emit_chronicle(LOGGER_LEVEL_INFO, "logger", using_message);
+    }
+}
+
+void Logger::logger_finish_command(void)
+{
     if (logger_pending_page == 1) {
         logger_print_help();
         exit(0);
@@ -495,61 +905,6 @@ Logger::Logger(int argc, char **argv)
         logger_print_about();
         exit(0);
     }
-
-    if (logger_purpose != 0) {
-        if (logger_prefix_arg == NULL && logger_home_arg == NULL) {
-            logger_die("test purpose command requires --prefix or --home");
-        }
-        if ((logger_purpose == 1 || logger_purpose == 3) && logger_datestamp_arg == NULL) {
-            logger_die("test purpose command requires --log-datestamp YYYYMMDD");
-        }
-    }
-    if (logger_datestamp_arg != NULL && !logger_datestamp_ok(logger_datestamp_arg)) {
-        logger_die("--log-datestamp requires YYYYMMDD");
-    }
-
-    {
-        char today[16];
-        char base[4096];
-        char tail[256];
-        const char *stamp = logger_datestamp_arg;
-        if (stamp == NULL) {
-            time_t now = time(NULL);
-            struct tm *tm_ptr = localtime(&now);
-            if (tm_ptr == NULL || strftime(today, sizeof today, "%Y%m%d", tm_ptr) == 0) {
-                g_strlcpy(today, "19700101", sizeof today);
-            }
-            stamp = today;
-        }
-        if (logger_purpose != 0) {
-            const char *dir = logger_prefix_arg != NULL ? logger_prefix_arg : logger_home_arg;
-            if (g_snprintf(tail, sizeof tail, "%s/%s",
-                           logger_prefix_arg != NULL ? "var" : ".app",
-                           PROJECT_NAME) >= (gint)sizeof tail) {
-                g_printerr("logger folder path is too long\n");
-                exit(1);
-            }
-            logger_join_base(base, sizeof base, dir, tail);
-            logger_apply_base(base, stamp);
-        } else if (geteuid() == 0) {
-            if (g_snprintf(base, sizeof base, "/var/%s", PROJECT_NAME) >= (gint)sizeof base) {
-                g_printerr("logger folder path is too long\n");
-                exit(1);
-            }
-            logger_apply_base(base, stamp);
-        } else {
-            const char *home = getenv("HOME");
-            if (home != NULL && home[0] != '\0') {
-                if (g_snprintf(tail, sizeof tail, ".app/%s", PROJECT_NAME) >= (gint)sizeof tail) {
-                    g_printerr("logger folder path is too long\n");
-                    exit(1);
-                }
-                logger_join_base(base, sizeof base, home, tail);
-                logger_apply_base(base, stamp);
-            }
-        }
-    }
-
     if (logger_purpose == 2) {
         logger_list_log_files();
         exit(0);
@@ -560,32 +915,20 @@ Logger::Logger(int argc, char **argv)
     }
 
     logger_log_found_switches();
-    logger_debug("component %s start", LOG_COMPONENT);
-
+    logger_debug(LOG_COMPONENT, "component %s start", LOG_COMPONENT);
     if (logger_json_mode) {
         logger_set_quiet(true);
-        logger_debug("JSON mode active → quiet mode forced ON");
+        logger_debug(LOG_COMPONENT, "JSON mode active → quiet mode forced ON");
     }
-
     if (debug_env_enabled) {
         if (logger_folder[0] != '\0') {
-            logger_debug("logger folder %s", logger_folder);
-            logger_debug("log file %s", logger_log_path);
+            logger_debug(LOG_COMPONENT, "logger folder %s", logger_folder);
+            logger_debug(LOG_COMPONENT, "log file %s", logger_log_path);
         } else {
-            logger_debug("logger folder unresolved");
+            logger_debug(LOG_COMPONENT, "logger folder unresolved");
         }
-    }
-
-    if (!logger_get_quiet() && !logger_json_mode) {
-        logger_info("%s Output System initialized", PROJECT_NAME);
-        if (debug_from_env) {
-            logger_info("Debug mode enabled via DEBUG=1 environment variable");
-        }
-    } else if (logger_json_mode) {
-        logger_info("Output system initialized in JSON mode");
     }
 }
-
 // ──────────────────────────────────────────────
 // logger_log() - Core Single Source of Output Function
 // ──────────────────────────────────────────────
@@ -641,36 +984,7 @@ Logger::Logger(int argc, char **argv)
    Last updated: 2026-10-03 */
 gchar *Logger::logger_json_escape(const char *text)
 {
-    GString *out = g_string_new("");
-    const unsigned char *cursor = (const unsigned char *)(text ? text : "");
-
-    for (; *cursor != '\0'; cursor++) {
-        switch (*cursor) {
-            case '\\':
-                g_string_append(out, "\\\\");
-                break;
-            case '"':
-                g_string_append(out, "\\\"");
-                break;
-            case '\n':
-                g_string_append(out, "\\n");
-                break;
-            case '\r':
-                g_string_append(out, "\\r");
-                break;
-            case '\t':
-                g_string_append(out, "\\t");
-                break;
-            default:
-                if (*cursor < 0x20) {
-                    g_string_append_printf(out, "\\u%04x", *cursor);
-                } else {
-                    g_string_append_c(out, (gchar)*cursor);
-                }
-                break;
-        }
-    }
-    return g_string_free(out, FALSE);
+    return json_escape_text(text);
 }
 
 const char *Logger::logger_level_name(LoggerOutputLevel level)
@@ -678,42 +992,44 @@ const char *Logger::logger_level_name(LoggerOutputLevel level)
     switch (level) {
         case LOGGER_LEVEL_INFO:    return "INFO";
         case LOGGER_LEVEL_WARNING: return "WARNING";
-        case LOGGER_LEVEL_ERROR:   return "ERROR";
-        case LOGGER_LEVEL_DEBUG:   return "DEBUG";
-        case LOGGER_LEVEL_FATAL:   return "FATAL";
-        default:                 return "INFO";
+        case LOGGER_LEVEL_ERROR:    return "ERROR";
+        case LOGGER_LEVEL_CRITICAL: return "CRITICAL";
+        case LOGGER_LEVEL_FATAL:    return "FATAL";
+        case LOGGER_LEVEL_DEBUG:    return "DEBUG";
+        default:                    return "INFO";
     }
 }
 
 int Logger::logger_stderr_level(LoggerOutputLevel level)
 {
-    return level == LOGGER_LEVEL_ERROR || level == LOGGER_LEVEL_FATAL;
+    return level == LOGGER_LEVEL_ERROR || level == LOGGER_LEVEL_CRITICAL || level == LOGGER_LEVEL_FATAL;
 }
 
-/* ChronicleLogger log_message: local time, pid, level, component, then the message.
-   ERROR and FATAL go to stderr. INFO, WARNING, and DEBUG go to stdout.
-   CRITICAL is not a well-known level and is not emitted.
-   The component is LOG_COMPONENT ("main"): " @main" before " :] ". */
-void Logger::logger_emit_chronicle(LoggerOutputLevel level, const char *message)
+/* ChronicleLogger log_message: local time, pid, level, optional component, then the message.
+   ERROR, CRITICAL, and FATAL go to stderr. INFO, WARNING, and DEBUG go to stdout.
+   A non-empty component is " @name" before " :] ". An empty component omits that slot. */
+void Logger::logger_emit_chronicle(LoggerOutputLevel level, const char *component, const char *message)
 {
     char timestamp[32];
-    time_t now = time(NULL);
-    struct tm *tm_ptr;
     const char *text = message ? message : "";
+    const char *part = component ? component : "";
     const char *level_name = logger_level_name(level);
 
-    tm_ptr = localtime(&now);
-    if (tm_ptr == NULL ||
-        strftime(timestamp, sizeof timestamp, "%Y-%m-%d %H:%M:%S", tm_ptr) == 0) {
-        g_strlcpy(timestamp, "1970-01-01 00:00:00", sizeof timestamp);
-    }
-
+    logger_format_timestamp(timestamp, sizeof timestamp);
     if (logger_stderr_level(level)) {
-        g_printerr("[%s] pid:%ld [%s] @%s :] %s\n",
-                   timestamp, (long)getpid(), level_name, LOG_COMPONENT, text);
-    } else {
+        if (part[0] != '\0') {
+            g_printerr("[%s] pid:%ld [%s] @%s :] %s\n",
+                       timestamp, (long)getpid(), level_name, part, text);
+        } else {
+            g_printerr("[%s] pid:%ld [%s] :] %s\n",
+                       timestamp, (long)getpid(), level_name, text);
+        }
+    } else if (part[0] != '\0') {
         g_print("[%s] pid:%ld [%s] @%s :] %s\n",
-                timestamp, (long)getpid(), level_name, LOG_COMPONENT, text);
+                timestamp, (long)getpid(), level_name, part, text);
+    } else {
+        g_print("[%s] pid:%ld [%s] :] %s\n",
+                timestamp, (long)getpid(), level_name, text);
     }
 }
 
@@ -1055,13 +1371,12 @@ void Logger::logger_maintain_directory(const char *folder, const char *active_ba
    Why This Design: the test reads one file path from requirement-cpp-logger.md.
    Protection Rule: do not write when the log path is unresolved.
    Last updated: 2026-10-03 */
-void Logger::logger_append_log_file(LoggerOutputLevel level, const char *message)
+void Logger::logger_append_log_file(LoggerOutputLevel level, const char *component, const char *message)
 {
     char timestamp[32];
-    time_t now;
-    struct tm *tm_ptr;
     FILE *file;
     const char *text = message ? message : "";
+    const char *part = component ? component : "";
 
     if (logger_log_path[0] == '\0' || logger_folder[0] == '\0') {
         return;
@@ -1073,12 +1388,7 @@ void Logger::logger_append_log_file(LoggerOutputLevel level, const char *message
         }
         return;
     }
-    now = time(NULL);
-    tm_ptr = localtime(&now);
-    if (tm_ptr == NULL ||
-        strftime(timestamp, sizeof timestamp, "%Y-%m-%d %H:%M:%S", tm_ptr) == 0) {
-        g_strlcpy(timestamp, "1970-01-01 00:00:00", sizeof timestamp);
-    }
+    logger_format_timestamp(timestamp, sizeof timestamp);
     file = fopen(logger_log_path, "a");
     if (file == NULL) {
         g_printerr("cannot open log file %s\n", logger_log_path);
@@ -1087,42 +1397,35 @@ void Logger::logger_append_log_file(LoggerOutputLevel level, const char *message
         }
         return;
     }
-    fprintf(file, "[%s] pid:%ld [%s] @%s :] %s\n",
-            timestamp, (long)getpid(), logger_level_name(level), LOG_COMPONENT, text);
-    fclose(file);
-    if (logger_purpose == 0 && !logger_retention_done) {
-        char today[16];
-        const char *active;
-        time_t now_day;
-        struct tm *day_tm;
-
-        logger_retention_done = 1;
-        now_day = time(NULL);
-        day_tm = localtime(&now_day);
-        if (day_tm != NULL && strftime(today, sizeof today, "%Y%m%d", day_tm) != 0) {
-            active = strrchr(logger_log_path, '/');
-            active = (active != NULL) ? active + 1 : logger_log_path;
-            logger_maintain_directory(logger_folder, active, today);
-        }
+    if (part[0] != '\0') {
+        fprintf(file, "[%s] pid:%ld [%s] @%s :] %s\n",
+                timestamp, (long)getpid(), logger_level_name(level), part, text);
+    } else {
+        fprintf(file, "[%s] pid:%ld [%s] :] %s\n",
+                timestamp, (long)getpid(), logger_level_name(level), text);
     }
+    fclose(file);
 }
 
-void Logger::logger_log(LoggerOutputLevel level, const char *format, va_list ap)   // Changed: va_list (by value), no ...
+void Logger::logger_log(LoggerOutputLevel level, const char *component, const char *format, va_list ap)   // Changed: va_list (by value), no ...
 {
+    const char *part = component ? component : "";
+
     if (level == LOGGER_LEVEL_DEBUG && !logger_get_debug()) {
         return;
     }
 
     /* Stdout human lines stay hidden unless --verbose or debug mode is set.
-       Neither one shows them while quiet or JSON is on. ERROR and FATAL stay
-       on stderr. The dated file still receives the human line. */
+       Neither one shows them while quiet or JSON is on. ERROR, CRITICAL, and
+       FATAL stay on stderr. The dated file still receives the human line. */
     // Make a copy because g_strdup_vprintf / g_vasprintf may consume the list
     va_list ap_copy;
     va_copy(ap_copy, ap);
 
     gchar *message = g_strdup_vprintf(format, ap_copy);
 
-    logger_append_log_file(level, message);
+    logger_note_dated_path();
+    logger_append_log_file(level, part, message);
 
     if (logger_json_mode) {
         gchar *escaped = logger_json_escape(message ? message : "");
@@ -1133,7 +1436,7 @@ void Logger::logger_log(LoggerOutputLevel level, const char *format, va_list ap)
         g_free(escaped);
     } else if (logger_stderr_level(level) ||
                (!logger_get_quiet() && (logger_verbose || debug_env_enabled))) {
-        logger_emit_chronicle(level, message);
+        logger_emit_chronicle(level, part, message);
     }
 
     g_free(message);
@@ -1162,11 +1465,11 @@ void Logger::logger_log(LoggerOutputLevel level, const char *format, va_list ap)
 //
 // Last updated: Full CIAO expansion (2026-05-08)
 // ──────────────────────────────────────────────
-void Logger::logger_info(const char *format, ...)
+void Logger::logger_info(const char *component, const char *format, ...)
 {
     va_list args;
     va_start(args, format);
-    logger_log(LOGGER_LEVEL_INFO, format, args);
+    logger_log(LOGGER_LEVEL_INFO, component, format, args);
     va_end(args);
 }
 
@@ -1192,11 +1495,11 @@ void Logger::logger_info(const char *format, ...)
 //
 // Last updated: Full CIAO expansion (2026-05-08)
 // ──────────────────────────────────────────────
-void Logger::logger_warn(const char *format, ...)
+void Logger::logger_warn(const char *component, const char *format, ...)
 {
     va_list args;
     va_start(args, format);
-    logger_log(LOGGER_LEVEL_WARNING, format, args);
+    logger_log(LOGGER_LEVEL_WARNING, component, format, args);
     va_end(args);
 }
 
@@ -1222,19 +1525,27 @@ void Logger::logger_warn(const char *format, ...)
 //
 // Last updated: Full CIAO expansion (2026-05-08)
 // ──────────────────────────────────────────────
-void Logger::logger_error(const char *format, ...)
+void Logger::logger_error(const char *component, const char *format, ...)
 {
     va_list args;
     va_start(args, format);
-    logger_log(LOGGER_LEVEL_ERROR, format, args);
+    logger_log(LOGGER_LEVEL_ERROR, component, format, args);
     va_end(args);
 }
 
-void Logger::logger_fatal(const char *format, ...)
+void Logger::logger_critical(const char *component, const char *format, ...)
 {
     va_list args;
     va_start(args, format);
-    logger_log(LOGGER_LEVEL_FATAL, format, args);
+    logger_log(LOGGER_LEVEL_CRITICAL, component, format, args);
+    va_end(args);
+}
+
+void Logger::logger_fatal(const char *component, const char *format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    logger_log(LOGGER_LEVEL_FATAL, component, format, args);
     va_end(args);
 }
 
@@ -1265,13 +1576,13 @@ void Logger::logger_fatal(const char *format, ...)
 //
 // Last updated: Full CIAO expansion (2026-05-08)
 // ──────────────────────────────────────────────
-void Logger::logger_debug(const char *format, ...)
+void Logger::logger_debug(const char *component, const char *format, ...)
 {
     if (!logger_get_debug()) return;
 
     va_list args;
     va_start(args, format);
-    logger_log(LOGGER_LEVEL_DEBUG, format, args);
+    logger_log(LOGGER_LEVEL_DEBUG, component, format, args);
     va_end(args);
 }
 
@@ -1603,13 +1914,13 @@ void Logger::logger_print_about(void)
    so the retain driver does not parse argv or append a log.
    Protection Rule: requirement-cpp-oop.md. These names are not new behavior. */
 
-extern "C" void logger_log(LoggerOutputLevel level, const char *format, va_list ap)
+extern "C" void logger_log(LoggerOutputLevel level, const char *component, const char *format, va_list ap)
 {
     if (Logger::logger_active == NULL) {
         g_printerr("Logger is constructed at the call site\n");
         exit(1);
     }
-    Logger::logger_active->logger_log(level, format, ap);
+    Logger::logger_active->logger_log(level, component, format, ap);
 }
 
 extern "C" void logger_output_init(int, char **)
@@ -1656,7 +1967,7 @@ extern "C" bool logger_get_debug(void)
     return Logger::logger_active->logger_get_debug();
 }
 
-extern "C" void logger_info(const char *format, ...)
+extern "C" void logger_info(const char *component, const char *format, ...)
 {
     va_list ap;
 
@@ -1665,11 +1976,11 @@ extern "C" void logger_info(const char *format, ...)
         exit(1);
     }
     va_start(ap, format);
-    Logger::logger_active->logger_log(LOGGER_LEVEL_INFO, format, ap);
+    Logger::logger_active->logger_log(LOGGER_LEVEL_INFO, component, format, ap);
     va_end(ap);
 }
 
-extern "C" void logger_warn(const char *format, ...)
+extern "C" void logger_warn(const char *component, const char *format, ...)
 {
     va_list ap;
 
@@ -1678,11 +1989,11 @@ extern "C" void logger_warn(const char *format, ...)
         exit(1);
     }
     va_start(ap, format);
-    Logger::logger_active->logger_log(LOGGER_LEVEL_WARNING, format, ap);
+    Logger::logger_active->logger_log(LOGGER_LEVEL_WARNING, component, format, ap);
     va_end(ap);
 }
 
-extern "C" void logger_error(const char *format, ...)
+extern "C" void logger_error(const char *component, const char *format, ...)
 {
     va_list ap;
 
@@ -1691,11 +2002,11 @@ extern "C" void logger_error(const char *format, ...)
         exit(1);
     }
     va_start(ap, format);
-    Logger::logger_active->logger_log(LOGGER_LEVEL_ERROR, format, ap);
+    Logger::logger_active->logger_log(LOGGER_LEVEL_ERROR, component, format, ap);
     va_end(ap);
 }
 
-extern "C" void logger_fatal(const char *format, ...)
+extern "C" void logger_critical(const char *component, const char *format, ...)
 {
     va_list ap;
 
@@ -1704,11 +2015,11 @@ extern "C" void logger_fatal(const char *format, ...)
         exit(1);
     }
     va_start(ap, format);
-    Logger::logger_active->logger_log(LOGGER_LEVEL_FATAL, format, ap);
+    Logger::logger_active->logger_log(LOGGER_LEVEL_CRITICAL, component, format, ap);
     va_end(ap);
 }
 
-extern "C" void logger_debug(const char *format, ...)
+extern "C" void logger_fatal(const char *component, const char *format, ...)
 {
     va_list ap;
 
@@ -1717,14 +2028,27 @@ extern "C" void logger_debug(const char *format, ...)
         exit(1);
     }
     va_start(ap, format);
-    Logger::logger_active->logger_log(LOGGER_LEVEL_DEBUG, format, ap);
+    Logger::logger_active->logger_log(LOGGER_LEVEL_FATAL, component, format, ap);
+    va_end(ap);
+}
+
+extern "C" void logger_debug(const char *component, const char *format, ...)
+{
+    va_list ap;
+
+    if (Logger::logger_active == NULL) {
+        g_printerr("Logger is constructed at the call site\n");
+        exit(1);
+    }
+    va_start(ap, format);
+    Logger::logger_active->logger_log(LOGGER_LEVEL_DEBUG, component, format, ap);
     va_end(ap);
 }
 
 extern "C" void logger_maintain_directory(const char *folder, const char *active_basename, const char *today_yyyymmdd)
 {
     if (Logger::logger_active == NULL) {
-        Logger cold(-1, NULL);
+        Logger cold("", NULL, NULL, false, NULL);
         cold.logger_maintain_directory(folder, active_basename, today_yyyymmdd);
         return;
     }

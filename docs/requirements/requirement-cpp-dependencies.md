@@ -1,6 +1,6 @@
 **file**: docs/requirements/requirement-cpp-dependencies.md
 **Status**: Active
-**Updated**: 2026-10-03
+**Updated**: 2026-11-10
 **Philosophy**: CIAO v2.10.2 / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
 
 ## 1. Purpose
@@ -23,7 +23,7 @@ This file owns the libraries the C++ program compiles and links against, and the
 
 | Surface | What you open | What for |
 |---------|---------------|----------|
-| `./build.sh` | `install_deps` and the `pkg-config` call | Apt packages and the link set |
+| `./build.sh` | `build_install_deps` and the `pkg-config` call in `build_link` | Apt packages and the link set |
 | `meson.build` | `dependency()` entries | The same link set |
 
 | You do… | What it means | What you type |
@@ -45,7 +45,7 @@ The ship unit does not link GTK, WebKitGTK, GObject, GIO, SQLite, or Lua. It doe
 
 The second build needs `meson` and `ninja-build` on the developer machine. `./build.sh install` does not install those two packages.
 
-`project.sh` `REQUIRED_LIBS` names `glib-2.0`. `./build.sh` sources `project.sh` for paths. The `pkg-config` call inside `build()` uses the table above.
+`project.sh` `REQUIRED_LIBS` names `glib-2.0`. `./build.sh` reads `project.sh` with `.`. The `pkg-config` call inside `build_link` uses the table above.
 
 Package versions are the distro packages for these names. This file has no version pins and no lockfile.
 
@@ -100,5 +100,5 @@ Future editors must not add GTK, WebKitGTK, Lua, SQLite, or sol2 to this table u
 | `meson.build` | `dependency()` calls |
 | `project.ini` | `REQUIRED_PACKAGES` and `LIB_VERSIONS` |
 
-**Last updated**: 2026-10-03
+**Last updated**: 2026-11-10
 **Owner**: Dependencies

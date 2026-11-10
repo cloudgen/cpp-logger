@@ -5,6 +5,7 @@
 # The child is started with HOME and PREFIX removed.
 # Cleanup removes those scratch directories. It does not remove /tmp.
 set -eu
+unset CONDA_PREFIX CONDA_DEFAULT_ENV VIRTUAL_ENV PYENV_VIRTUAL_ENV
 
 cd "$(dirname "$0")/.."
 
@@ -152,7 +153,6 @@ if [ -e "${fail_dir}/${name}-20261102.log.tar.gz" ] || [ -e "${fail_dir}/${name}
 fi
 
 printf 'still-here\n' > "${log}/${name}-20261001.log"
-env -u HOME -u PREFIX "${bin}" test --prefix "${root}" --log-datestamp 20261103 >"${work}/test.txt" 2>&1
 env -u HOME -u PREFIX "${bin}" help >"${work}/help.txt" 2>&1
 env -u HOME -u PREFIX "${bin}" about >"${work}/about.txt" 2>&1
 list_out=$(env -u HOME -u PREFIX "${bin}" list --prefix "${root}")
@@ -165,11 +165,11 @@ show_plain=$(env -u HOME -u PREFIX "${bin}" show --prefix "${root}" --log-datest
 printf '%s\n' "${show_plain}" | grep -F 'plain7' >/dev/null
 
 if [ ! -f "${log}/${name}-20261001.log" ]; then
-    echo "[ERROR] test, list, show, help, or about removed an old day"
+    echo "[ERROR] help, about, list, or show removed an old day"
     exit 1
 fi
 if [ ! -f "${log}/${name}-20261103.log" ] || [ ! -f "${log}/${name}-20261102.log.tar.gz" ]; then
-    echo "[ERROR] a purpose command changed the retained days"
+    echo "[ERROR] help, about, list, or show changed the retained days"
     exit 1
 fi
 printf '%s\n' "${list_out}" | grep -F "${name}-20261001.log" >/dev/null
@@ -181,6 +181,20 @@ if printf '%s\n' "${list_out}" | grep -F 'tar.gz' >/dev/null; then
 fi
 if printf '%s\n' "${list_out}" | grep -F "${name}-20261102.log" >/dev/null; then
     echo "[ERROR] list printed a packaged day"
+    exit 1
+fi
+
+env -u HOME -u PREFIX "${bin}" test --prefix "${root}" --log-datestamp 20261103 >"${work}/test.txt" 2>&1
+if [ -f "${log}/${name}-20261001.log" ]; then
+    echo "[ERROR] test left a day past 30 days"
+    exit 1
+fi
+if [ ! -f "${log}/${name}-20261103.log" ] || [ ! -f "${log}/${name}-20261102.log.tar.gz" ]; then
+    echo "[ERROR] test removed the active plain file or the count 8 package"
+    exit 1
+fi
+if [ -e "${log}/${name}-20261103.log.tar.gz" ] || [ -e "${log}/${name}-20261103.log.zip" ]; then
+    echo "[ERROR] test packaged the active file"
     exit 1
 fi
 

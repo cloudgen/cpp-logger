@@ -20,7 +20,7 @@
        DO NOT hardcode the project name. DO NOT remove these comments.
      ========================================================================= -->
 <project name="ant-build" default="build" basedir=".">
-    <property name="version" value="1.1.1"/>
+    <property name="version" value="1.1.2"/>
     <!-- Define project properties -->
     <property file="project.ini"/>
     <!-- Missing-key fallback. This is the only product-id literal in this file. -->
@@ -31,7 +31,7 @@
     <property name="src.cpp.dir" value="${src.dir}/main/cpp"/>
     <property name="build.dir" value="target"/>
     <property name="build.debug.dir" value="target/exe/debug"/>
-    <property name="version" value="1.1.1"/>
+    <property name="version" value="1.1.2"/>
     <property name="author" value="july.wong@gmail.com"/>
     <property name="lib.versions" value="glib-2.0"/>
     <property name="project.sh" value="./project.sh"/>
@@ -292,7 +292,7 @@ AC_OUTPUT
     </target>
 
     <target name="install-generate" depends="check-project-sh" unless="project.sh.exists">
-        <echo file="${project.sh}" append="false"><![CDATA[#!/bin/bash
+        <echo file="${project.sh}" append="false"><![CDATA[#!/bin/sh
 # Export project variables
 export PRJ=${app.name}
 export SRC=${src.dir}

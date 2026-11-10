@@ -5,6 +5,7 @@
 # Cleanup removes /tmp/.app/<name>, /tmp/.app when that directory is empty,
 # and /tmp/cpp-logger-portable-work. It does not remove /tmp.
 set -eu
+unset CONDA_PREFIX CONDA_DEFAULT_ENV VIRTUAL_ENV PYENV_VIRTUAL_ENV
 
 cd "$(dirname "$0")/.."
 

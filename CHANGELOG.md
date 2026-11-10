@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.2] - 2026-11-11
+
+### Changed
+- `main` parses the command, then constructs `Logger` with the log name, the log directory, the base directory, quiet, and a clock. An empty name does not create a directory. A non-empty name resolves the base, creates the log directory, and writes one newline.
+- The level enumeration includes `CRITICAL`. `logger_critical` writes that level. Error, critical, and fatal use stderr. The caller passes the component. An empty component omits `@`.
+- The base directory is an explicit base, else the conda prefix, else the pyenv virtualenv, else `VIRTUAL_ENV`, else `/var/<name>` for effective user id 0, else `$HOME/.app/<name>`.
+- A log call whose dated path changes runs the 7-day package and the 30-day removal before the append, including `test`. `help`, `about`, `list`, and `show` do not create or change the log directory.
+- `build.sh` and `project.sh` start with `#!/bin/sh`. `build.sh` loads `project.sh` with `. ./project.sh`. Functions in `build.sh` use the `build_` prefix.
+- `project.h`, `project.ini`, `meson.build`, `build.gradle`, `build.xml`, and the README Version badge say 1.1.2.
+
 ## [1.1.1] - 2026-11-10
 
 ### Added

@@ -8,15 +8,18 @@
 # /tmp/cpp-logger-prefix-decoy, empty parents, and the work directory.
 # It does not remove /tmp and it does not start a normal run.
 set -eu
+unset CONDA_PREFIX CONDA_DEFAULT_ENV VIRTUAL_ENV PYENV_VIRTUAL_ENV
 
 cd "$(dirname "$0")/.."
 
 work=/tmp/cpp-logger-verb-work
 home_dir=/tmp/.app/cpp-logger/log
 prefix_dir=/tmp/var/cpp-logger/log
-home_old=${home_dir}/cpp-logger-20261002.log
-home_new=${home_dir}/cpp-logger-20261003.log
-prefix_new=${prefix_dir}/cpp-logger-20261003.log
+stamp_prev=$(date -d '1 day ago' +%Y%m%d)
+stamp_now=$(date +%Y%m%d)
+home_old=${home_dir}/cpp-logger-${stamp_prev}.log
+home_new=${home_dir}/cpp-logger-${stamp_now}.log
+prefix_new=${prefix_dir}/cpp-logger-${stamp_now}.log
 home_decoy=/tmp/cpp-logger-home-decoy
 prefix_decoy=/tmp/cpp-logger-prefix-decoy
 
@@ -58,14 +61,14 @@ if env -u HOME -u PREFIX "${bin}" show --home /tmp >"${work}/miss-stamp.txt" 2>&
 fi
 grep -F 'test purpose command requires --log-datestamp YYYYMMDD' "${work}/miss-stamp.txt" >/dev/null
 
-env -u HOME -u PREFIX "${bin}" test --home /tmp --log-datestamp 20261002 --quiet >/dev/null
-env -u HOME -u PREFIX "${bin}" test --home /tmp --log-datestamp 20261003 --quiet >/dev/null
+env -u HOME -u PREFIX "${bin}" test --home /tmp --log-datestamp "${stamp_prev}" --quiet >/dev/null
+env -u HOME -u PREFIX "${bin}" test --home /tmp --log-datestamp "${stamp_now}" --quiet >/dev/null
 
 list_out=$(env -u HOME -u PREFIX "${bin}" list --home /tmp)
-printf '%s\n' "${list_out}" | grep -F 'cpp-logger-20261002.log' >/dev/null
-printf '%s\n' "${list_out}" | grep -F 'cpp-logger-20261003.log' >/dev/null
-expected='cpp-logger-20261002.log
-cpp-logger-20261003.log'
+printf '%s\n' "${list_out}" | grep -F "cpp-logger-${stamp_prev}.log" >/dev/null
+printf '%s\n' "${list_out}" | grep -F "cpp-logger-${stamp_now}.log" >/dev/null
+expected="cpp-logger-${stamp_prev}.log
+cpp-logger-${stamp_now}.log"
 if [ "${list_out}" != "${expected}" ]; then
     echo "[ERROR] list did not print the names in sorted order"
     printf '%s\n' "${list_out}"
@@ -83,21 +86,21 @@ fi
 rm -f "${home_dir}/notes.txt"
 rmdir "${home_dir}/extra.log"
 
-show_out=$(env -u HOME -u PREFIX "${bin}" show --home /tmp --log-datestamp 20261003)
+show_out=$(env -u HOME -u PREFIX "${bin}" show --home /tmp --log-datestamp "${stamp_now}")
 file_out=$(cat "${home_new}")
 if [ "${show_out}" != "${file_out}" ]; then
     echo "[ERROR] show did not print the dated file"
     exit 1
 fi
 printf '%s\n' "${show_out}" | grep -F '] @main :] test log' >/dev/null
-if printf '%s\n' "${show_out}" | grep -F '20261002' >/dev/null; then
+if printf '%s\n' "${show_out}" | grep -F "${stamp_prev}" >/dev/null; then
     echo "[ERROR] show printed the other date"
     exit 1
 fi
 
 before=$(cat "${home_new}")
 env -u HOME -u PREFIX "${bin}" list --home /tmp >/dev/null
-env -u HOME -u PREFIX "${bin}" show --home /tmp --log-datestamp 20261003 >/dev/null
+env -u HOME -u PREFIX "${bin}" show --home /tmp --log-datestamp "${stamp_now}" >/dev/null
 after=$(cat "${home_new}")
 if [ "${before}" != "${after}" ]; then
     echo "[ERROR] list or show changed the log file"
@@ -112,12 +115,12 @@ if [ "${quiet_list}" != "${expected}" ]; then
 fi
 json_list=$(env -u HOME -u PREFIX "${bin}" list --home /tmp --json)
 printf '%s\n' "${json_list}" | grep -F '"command":"list"' >/dev/null
-printf '%s\n' "${json_list}" | grep -F '"files":["cpp-logger-20261002.log","cpp-logger-20261003.log"]' >/dev/null
+printf '%s\n' "${json_list}" | grep -F "\"files\":[\"cpp-logger-${stamp_prev}.log\",\"cpp-logger-${stamp_now}.log\"]" >/dev/null
 if printf '%s\n' "${json_list}" | grep -F 'notes.txt' >/dev/null; then
     echo "[ERROR] list --json kept a non-log name"
     exit 1
 fi
-json_show=$(env -u HOME -u PREFIX "${bin}" show --home /tmp --log-datestamp 20261003 --json)
+json_show=$(env -u HOME -u PREFIX "${bin}" show --home /tmp --log-datestamp "${stamp_now}" --json)
 printf '%s\n' "${json_show}" | grep -F '"command":"show"' >/dev/null
 printf '%s\n' "${json_show}" | grep -F '] @main :] test log' >/dev/null
 if [ "${json_show}" = "${show_out}" ]; then
@@ -144,7 +147,7 @@ if env -u HOME -u PREFIX "${bin}" list --home /tmp --log-datestamp 2026 >"${work
 fi
 grep -F -- '--log-datestamp requires YYYYMMDD' "${work}/bad-stamp.txt" >/dev/null
 
-if env -u HOME -u PREFIX "${bin}" test list --home /tmp --log-datestamp 20261003 >"${work}/two.txt" 2>&1; then
+if env -u HOME -u PREFIX "${bin}" test list --home /tmp --log-datestamp "${stamp_now}" >"${work}/two.txt" 2>&1; then
     echo "[ERROR] two purpose commands were accepted"
     exit 1
 fi
@@ -161,14 +164,14 @@ if [ -n "${prefix_list}" ]; then
     exit 1
 fi
 
-env -u HOME -u PREFIX "${bin}" test --prefix /tmp --log-datestamp 20261003 --quiet >/dev/null
+env -u HOME -u PREFIX "${bin}" test --prefix /tmp --log-datestamp "${stamp_now}" --quiet >/dev/null
 prefix_list=$(env -u HOME -u PREFIX "${bin}" list --prefix /tmp)
-if [ "${prefix_list}" != "cpp-logger-20261003.log" ]; then
+if [ "${prefix_list}" != "cpp-logger-${stamp_now}.log" ]; then
     echo "[ERROR] list --prefix did not print only the prefix file"
     printf '%s\n' "${prefix_list}"
     exit 1
 fi
-prefix_show=$(env -u HOME -u PREFIX "${bin}" show --prefix /tmp --log-datestamp 20261003)
+prefix_show=$(env -u HOME -u PREFIX "${bin}" show --prefix /tmp --log-datestamp "${stamp_now}")
 prefix_file=$(cat "${prefix_new}")
 if [ "${prefix_show}" != "${prefix_file}" ]; then
     echo "[ERROR] show --prefix did not print the prefix file"
@@ -178,7 +181,7 @@ fi
 mkdir -p "${home_decoy}/.app/cpp-logger/log"
 printf 'decoy\n' > "${home_decoy}/.app/cpp-logger/log/decoy.log"
 both=$(env -u HOME -u PREFIX "${bin}" list --prefix /tmp --home "${home_decoy}")
-if [ "${both}" != "cpp-logger-20261003.log" ]; then
+if [ "${both}" != "cpp-logger-${stamp_now}.log" ]; then
     echo "[ERROR] list let --home win over --prefix"
     printf '%s\n' "${both}"
     exit 1
@@ -220,7 +223,7 @@ grep -F 'cannot read log directory' "${work}/notdir.txt" >/dev/null
 
 echo "----- list --home /tmp -----"
 printf '%s\n' "${list_out}"
-echo "----- show --home /tmp --log-datestamp 20261003 -----"
+echo "----- show --home /tmp --log-datestamp ${stamp_now} -----"
 printf '%s\n' "${show_out}"
 echo "PASS log verbs"
 

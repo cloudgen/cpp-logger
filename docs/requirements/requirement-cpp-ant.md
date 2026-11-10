@@ -41,7 +41,7 @@ This file owns Ant host, flags, pkg-config, the debug path, the `run` dependency
 5. On Linux, the link writes `target/exe/debug/${PRJ}`. `PRJ` is the name from rule 1. That path is the same file `./build.sh` writes. When any `.cpp` file was compiled, the linker is `g++`. When every object is from a `.c` file, the linker is `gcc`. The link line also adds `-pthread`, as `requirement-cpp-dependencies.md` requires.
 6. On Windows, `build` depends on `build-windows`. On macOS, `build` depends on `build-macos`. On Linux, for glibc, uClibc, and musl, `build` depends on `compile`. Each of those host targets writes `target/exe/debug/${PRJ}`. Windows and macOS skip `pkg-config`. `build` does not depend on `clean` or on `install`. `ant build` still only builds. `build` is the Ant target for the step Gradle calls `assemble`.
 7. The `run` target depends on `build` on Windows, on macOS, and on Linux for glibc, uClibc, and musl. Its executable is `target/exe/debug/${PRJ}`.
-8. `install` generates `project.sh` only when that file is absent. The generated file exports both `SRC_C` and `SRC_CPP`. `SRC_C` is `$SRC/main/c`. `SRC_CPP` is `$SRC/main/cpp`. The generated file also exports `PRJ` from rule 1. An existing `project.sh` stays as it is. The generator does not create `src/main/c`.
+8. `install` generates `project.sh` only when that file is absent. The generated file starts with `#!/bin/sh`, which `requirement-cpp-build-sh.md` owns. It exports both `SRC_C` and `SRC_CPP`. `SRC_C` is `$SRC/main/c`. `SRC_CPP` is `$SRC/main/cpp`. The generated file also exports `PRJ` from rule 1. An existing `project.sh` stays as it is. The generator does not create `src/main/c`.
 
 ### 2.1 Implementation notes (this project)
 

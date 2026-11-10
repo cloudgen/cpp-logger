@@ -24,8 +24,14 @@
 - [x] `tests/test-cpp-log-retention.sh` printed `PASS cpp log retention`
 - [x] `tests/test-cpp-builds.sh` printed `PASS cpp builds`
 
+## Later law (2026-11-11)
+
+The allowed constructor is the five-argument form in `requirement-cpp-logger.md` §2.0. The checked `Logger logger(argc, argv);` item above is the 2026-11-10 record. It is not the current pass. The five-argument run is `docs/checklists/2026-11-11-checklist-cpp-oop.md`.
+
+- [ ] `main.cpp` constructs `Logger` with the log name, the log directory, the base directory, quiet, and the clock
+
 ## Verdict
 
-- [x] **Pass** — `tests/test-cpp-oop.sh` printed `PASS cpp oop` and exited 0 on 2026-11-10
+- [x] **Pass** — `tests/test-cpp-oop.sh` printed `PASS cpp oop` and exited 0 on 2026-11-10 for `Logger logger(argc, argv);`. That verdict does not prove the five-argument constructor. TP-CPP-OOP is todo
 - [ ] **Revise**
 - [ ] **Block**

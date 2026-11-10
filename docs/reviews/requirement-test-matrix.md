@@ -10,6 +10,8 @@ Each row names the requirement and the TP ids that prove it. Status lives in `te
 | requirement-cpp-gradle-coding-style | TP-CPP-GRADLE-STYLE | `tests/test-cpp-builds.sh` |
 | requirement-cpp-meson | TP-CPP-MESON | `tests/test-cpp-builds.sh` |
 | requirement-cpp-meson-coding-style | TP-CPP-MESON-STYLE | `tests/test-cpp-builds.sh` |
+| requirement-cpp-build-sh | TP-CPP-BUILD-SH | `tests/test-cpp-builds.sh` |
+| requirement-cpp-build-sh-coding-style | TP-CPP-BUILD-SH-STYLE | `tests/test-cpp-builds.sh` |
 | requirement-cpp-dependencies | TP-CPP-DEPENDENCIES | `tests/test-cpp-builds.sh` |
 | requirement-cpp-oop | TP-CPP-OOP | `tests/test-cpp-oop.sh` |
 | requirement-cpp-logger-folder, requirement-cpp-logger, requirement-cpp-output | TP-CPP-LOGGER-FOLDER | `tests/test-logger-folder.sh` |

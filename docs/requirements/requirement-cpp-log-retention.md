@@ -1,6 +1,6 @@
 **file**: docs/requirements/requirement-cpp-log-retention.md
 **Status**: Active
-**Updated**: 2026-11-10
+**Updated**: 2026-11-11
 **Philosophy**: CIAO v2.10.2 / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
 
 ## 1. Purpose
@@ -47,7 +47,7 @@ ChronicleLogger states this intention: archive a day older than 7 days, and remo
 5. Count greater than 7, and count 30 or less, keeps one package and removes the plain file after that package is complete. Windows writes `cpp-logger-<YYYYMMDD>.log.zip`. Every other host writes `cpp-logger-<YYYYMMDD>.log.tar.gz`. The package holds that one plain file.
 6. Count greater than 30 removes the plain file and removes the package.
 7. Today stays a plain file. The file this run is appending is the active file for that run. Retention leaves the active file plain for the rest of that run.
-8. Retention runs when a normal run appends a line, in the log directory that run writes, and it applies to the other dated names. `help`, `about`, `list`, `show`, and `test` do not archive and do not delete. A missing log directory stays missing. Retention does not create it.
+8. Retention runs when a log call's dated path changes, in the log directory that call writes, and it applies to the other dated names. `help`, `about`, `list`, and `show` do not log, so they do not archive and do not delete. A log call, including `test`, runs this maintenance before it appends. That trigger is `requirement-cpp-logger.md` §2.1. A missing log directory stays missing. Retention does not create it.
 9. When the package cannot be written, the plain file stays and a partial package is removed. The line this run stored stays stored. Housekeeping does not change a successful write into a failed exit.
 10. `list` lists plain `.log` names. `show` reads the plain file. A day that remains only as a package is absent from `list`, and `show` for that stamp exits 1 with `cannot read log file`. Those verbs do not unpack a package.
 
@@ -67,7 +67,7 @@ Today is `2026-11-10`.
 
 | TP-ID | Pass |
 |-------|------|
-| TP-CPP-LOG-RETENTION | `tests/test-cpp-log-retention.sh` exited 0 on 2026-11-10. The check plants names under literal directories in `/tmp`. It does not call `mktemp` or `mkstemp`. It does not read, assign, or delete `HOME`. A day at count 8 becomes the host package and the plain file is gone. A day at count 31 is gone. Today stays plain. A file whose name is not a dated log stays. `list` and `show` do not perform this maintenance |
+| TP-CPP-LOG-RETENTION | `tests/test-cpp-log-retention.sh` plants names under literal directories in `/tmp`. It does not call `mktemp` or `mkstemp`. It does not read, assign, or delete `HOME`. A day at count 8 becomes the host package and the plain file is gone. A day at count 31 is gone. Today stays plain. A file whose name is not a dated log stays. `help`, `about`, `list`, and `show` leave an older day in place. A following `test` log call removes a day past 30 days and leaves the active plain file unarchived |
 
 ### Design-time verification
 
@@ -78,14 +78,14 @@ Today is `2026-11-10`.
 **Matrix:** `docs/reviews/requirement-test-matrix.md`
 **Map:** `docs/reviews/test-plan.md`
 
-`tests/test-cpp-log-retention.sh` proves this file. The `test`, `list`, and `show` checks in `requirement-cpp-tests.md` still choose a stamp and then read it. Their stamps may be older than 30 days on a later calendar day. That is why rule 8 keeps `test` out of retention.
+`tests/test-cpp-log-retention.sh` proves this file. The `list` and `show` checks in `requirement-cpp-tests.md` use yesterday and today, so both names stay inside the 7-day window when the second `test` logs. A single-stamp folder check uses `20261003` because that file is the active basename and stays plain.
 
 ## 4. Protection rule
 
 Future editors must not:
 
 1. Archive or delete the active file during the run that is appending it.
-2. Run retention from `help`, `about`, `list`, `show`, or `test`.
+2. Run retention from `help`, `about`, `list`, or `show`. Those commands do not log. A log call, including `test`, runs retention when the dated path changes. Do not archive the active file.
 3. Delete a file whose date cannot be read from a `cpp-logger-<YYYYMMDD>` name.
 4. Remove the plain file when the package is incomplete.
 5. Mark `TP-CPP-LOG-RETENTION` pass in `docs/reviews/test-plan.md` before a suite has exited 0.
@@ -106,5 +106,5 @@ Future editors must not:
 | `docs/reviews/requirement-test-matrix.md` | This requirement to TP-CPP-LOG-RETENTION |
 | ChronicleLogger `LOG_ARCHIVE_DAYS` and `LOG_REMOVAL_DAYS` | The sibling windows, 7 and 30 |
 
-**Last updated**: 2026-11-10
+**Last updated**: 2026-11-11
 **Owner**: Logger

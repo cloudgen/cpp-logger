@@ -1,6 +1,6 @@
 **file**: docs/requirements/requirement-cpp-logger.md
 **Status**: Active
-**Updated**: 2026-11-10
+**Updated**: 2026-11-11
 **Philosophy**: CIAO v2.10.2 / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
 
 ## 1. Purpose
@@ -9,7 +9,7 @@ This file owns the logger calls, the human line, and the dated file that stores 
 
 ### 1.1 Human-facing
 
-**In one sentence:** The line is `[YYYY-MM-DD HH:MM:SS] pid:<pid> [LEVEL] @main :] message`. The terminal shows it only when `requirement-cpp-output.md` says so, and the same line is stored in `cpp-logger-<YYYYMMDD>.log`.
+**In one sentence:** The logger is constructed with a name, two optional directories, quiet, and a clock, and each message uses `[YYYY-MM-DD HH:MM:SS] pid:<pid> [LEVEL]` plus an optional ` @component`, then ` :] message`.
 
 | Box | Meaning | Example |
 |-----|---------|---------|
@@ -19,7 +19,7 @@ This file owns the logger calls, the human line, and the dated file that stores 
 
 | Includes | Excludes |
 |----------|----------|
-| The five `logger_*` calls, the human line, and the file `cpp-logger-<YYYYMMDD>.log` | Flag names, quiet, the JSON object, and which directory the environment selects |
+| Construction of the logger, the six level names, the human line, and the file `<name>-<YYYYMMDD>.log` | Flag spellings, quiet's effect on stdout, and the JSON object |
 
 | Surface | What you open | What for |
 |---------|---------------|----------|
@@ -30,19 +30,35 @@ This file owns the logger calls, the human line, and the dated file that stores 
 
 | You do… | What it means | What you type |
 |---------|---------------|---------------|
-| Start the program | The terminal shows no human line. The dated file still receives each emitted line | The binary, with no flags |
-| Show the line | Info, warning, and debug use the shape below. Error and fatal do not need this switch | `--verbose` or `--debug` |
+| Start the program | Construction resolves the directories, creates the log directory, and writes one newline when the file can be appended | The binary, with no flags |
+| Show the line | Info, warning, and debug use the shape below. Error, critical, and fatal do not need this switch | `--verbose` or `--debug` |
 
 ## 2. Core rules
 
-- Product code calls `logger_info`, `logger_warn`, `logger_error`, `logger_fatal`, and `logger_debug`. Those five call `logger_log`.
+- Product code calls `logger_info`, `logger_warn`, `logger_error`, `logger_critical`, `logger_fatal`, and `logger_debug`. Those six call `logger_log`.
+- The level argument is the enumeration `LoggerOutputLevel` in `logger.h`. The enumeration names are `LOGGER_LEVEL_INFO`, `LOGGER_LEVEL_WARNING`, `LOGGER_LEVEL_ERROR`, `LOGGER_LEVEL_CRITICAL`, `LOGGER_LEVEL_FATAL`, and `LOGGER_LEVEL_DEBUG`. The text written in the line is `INFO`, `WARNING`, `ERROR`, `CRITICAL`, `FATAL`, and `DEBUG`. A caller does not pass a free string for the level.
+
+### 2.0 Initialization
+
+The logger object is constructed with five arguments: the log name, an optional log directory, an optional base directory, a quiet flag, and an optional clock. This is the same construction order as ChronicleLogger `__init__(logname, logdir, basedir, is_quiet, time_provider)`.
+
+1. An empty log name returns immediately. Construction does not create a directory and does not write a file.
+2. Store the name. A name that contains an internal capital letter is rewritten to kebab-case. `cpp-logger` has no internal capital and stays `cpp-logger`.
+3. Resolve the base directory. A non-empty base directory is used as given. Otherwise the first match wins: the active conda prefix plus `/.app/<name>`, else the active pyenv virtualenv plus `/.app/<name>`, else `VIRTUAL_ENV` plus `/.app/<name>`, else effective user id 0 uses `/var/<name>`, else `$HOME/.app/<name>`. The directory table is `requirement-cpp-logger-folder.md`.
+4. Resolve the log directory. A non-empty log directory is used as given. Otherwise it is the base directory plus `/log`.
+5. The current file is `<log-directory>/<name>-<YYYYMMDD>.log`. The date comes from the clock argument. A null clock uses local time. Clock failure uses `19700101`.
+6. Create the log directory when it is missing. A successful create prints `Created directory: <path>` unless quiet is set.
+7. When that file can be opened for append, write one newline and close the file. A permission failure does not abort construction. This newline is not a formatted log line.
+8. `main` parses `argc` and `argv`. That parse is not this constructor. `main` then constructs `Logger` with the five arguments. `--prefix` and `--home` on `test`, `list`, and `show` supply an explicit directory and stay `requirement-cpp-logger-folder.md`.
+
+The 1.1.2 source constructs `Logger` with the log name, the log directory, the base directory, quiet, and the clock. An empty name returns before a directory is created. Construction does not emit `cpp-logger Output System initialized`. `main` calls `logger_parse_invocation` and then that constructor.
 - The translation unit is `src/main/cpp/logger.cpp`. The header is `src/main/cpp/logger.h`. There is no `logger.c`, no `output.c`, and no `output.h`.
 - `logger_log` takes `va_list` by value. It uses `va_copy` before `g_strdup_vprintf`. The signature does not go back to `...`.
 - A non-empty `DEBUG` enables `logger_debug`. That predicate is `requirement-cpp-debug-mode.md`. There is no `logger_set_debug`.
 
 ### 2.1 Logger format
 
-This is the ChronicleLogger `log_message` line. Local time, the process id, the level, the component, then the message. One line, one trailing newline.
+The line is the ChronicleLogger `log_message` line. Local time, the process id, the level, the optional component, then the message. One line, one trailing newline. The writer does not hard-wire the component. The caller passes it. This product's own events pass `main` (`LOG_COMPONENT` in `project.h`). An empty component omits the `@` slot.
 
 ```text
 [YYYY-MM-DD HH:MM:SS] pid:<pid> [<LEVEL>]<component> :] <message>
@@ -50,22 +66,24 @@ This is the ChronicleLogger `log_message` line. Local time, the process id, the 
 
 | Field | Rule |
 |-------|------|
-| `YYYY-MM-DD HH:MM:SS` | Local civil time from `localtime`. Each number is zero-padded. The separator between date and time is one space. Clock failure uses `1970-01-01 00:00:00`. |
-| `<pid>` | Decimal `getpid()`, no padding and no sign. |
-| `<LEVEL>` | Uppercase token inside one pair of brackets. The well-known levels are `INFO`, `DEBUG`, `WARNING`, `ERROR`, and `FATAL`, the set the sibling VideoSpeed allows on `log_message`. `logger_warn` emits `WARNING`, not `WARN`. `logger_fatal` emits `FATAL`. There is no omitted level. |
-| `<component>` | One space, `@`, and the name, with no space before `:]`. This program's component is `main` (`LOG_COMPONENT` in `project.h`). |
-| ` :] ` | The four characters space, colon, close-bracket, space. They stay even when `<component>` is empty. |
+| `YYYY-MM-DD HH:MM:SS` | Local civil time. Each number is zero-padded. The separator between date and time is one space. Clock failure uses `1970-01-01 00:00:00`. |
+| `<pid>` | Decimal process id, no padding and no sign. |
+| `<LEVEL>` | One of `INFO`, `WARNING`, `ERROR`, `CRITICAL`, `FATAL`, `DEBUG`, inside one pair of brackets. `logger_warn` emits `WARNING`, not `WARN`. `logger_critical` emits `CRITICAL`. `logger_fatal` emits `FATAL`. There is no omitted level. The default level, when a call does not name one, is `INFO`. |
+| `<component>` | When the caller passes a non-empty component, the field is one space, `@`, and that name, with no space before `:]`. When the component is empty, the field is empty. The writer does not insert `main` on its own. |
+| ` :] ` | The four characters space, colon, close-bracket, space. They stay when `<component>` is empty. |
 | `<message>` | The formatted text only. No extra brackets and no second timestamp. |
 
 ```text
-[2026-10-03 17:35:02] pid:3697984 [INFO] @main :] cpp-logger Output System initialized
-[2026-10-03 17:35:02] pid:3697984 [WARNING] @main :] disk almost full
-[2026-10-03 17:35:02] pid:3697984 [ERROR] @main :] permission denied
-[2026-10-03 17:35:02] pid:3697984 [DEBUG] @main :] debug mode enabled
-[2026-10-03 17:35:02] pid:3697984 [FATAL] @main :] cannot continue
+[2025-12-25 14:30:45] pid:12345 [INFO] @database :] Connected successfully
+[2025-12-25 14:30:45] pid:12345 [INFO] :] no component
+[2025-12-25 14:30:45] pid:12345 [WARNING] @main :] disk almost full
+[2025-12-25 14:30:45] pid:12345 [ERROR] @main :] permission denied
+[2025-12-25 14:30:45] pid:12345 [CRITICAL] @main :] cannot continue safely
+[2025-12-25 14:30:45] pid:12345 [FATAL] @main :] cannot continue
+[2025-12-25 14:30:45] pid:12345 [DEBUG] @main :] debug mode enabled
 ```
 
-`CRITICAL` is a ChronicleLogger level. It is not a well-known level. This program does not emit it.
+When the dated path changes inside a log call, the call runs the retention maintenance in `requirement-cpp-log-retention.md` before appending. When debug mode is on, that same call places this line ahead of the caller's line: `[YYYY-MM-DD HH:MM:SS] pid:<pid> [INFO] @logger :] Using <path>`. `ERROR`, `CRITICAL`, and `FATAL` use stderr. `INFO`, `WARNING`, and `DEBUG` use stdout. Which of those stdout lines the terminal shows is `requirement-cpp-output.md`.
 
 Quiet and JSON do not change this shape. They choose whether this line is the one on the terminal. That choice is `requirement-cpp-output.md` and `requirement-cpp-json.md`.
 
@@ -73,7 +91,7 @@ Quiet and JSON do not change this shape. They choose whether this line is the on
 
 A normal run appends `Starting cpp-logger <major>.<minor>.<patch>` and then `Finished cpp-logger <major>.<minor>.<patch>`. The numbers are `VERSION_MAJOR`, `VERSION_MINOR`, and `VERSION_PATCH` in `src/main/cpp/project.h`. Both lines are `INFO`. `help`, `about`, `list`, `show`, and `test` do not emit that pair.
 
-When debug mode is on, the same runs that reach the logger also append `component main start` and `component main end` as `DEBUG`, and one `DEBUG` line for each switch that was present. Those lines are `requirement-cpp-debug-mode.md`. The init line `cpp-logger Output System initialized` stays. It is not a substitute for the start line or the component line.
+When debug mode is on, the same runs that reach the logger also append `component main start` and `component main end` as `DEBUG`, and one `DEBUG` line for each switch that was present. Those lines are `requirement-cpp-debug-mode.md`. Construction does not emit `cpp-logger Output System initialized`. The construction write is the single newline in §2.0.
 
 ### 2.2 Dated file
 
@@ -97,51 +115,53 @@ The file is `cpp-logger-<YYYYMMDD>.log` inside cpp-log-path, or inside cpp-test-
 
 ### Sample code (this project)
 
-These functions are `src/main/cpp/logger.cpp`. Quiet, streams, and `--verbose` are `requirement-cpp-output.md`. The JSON object is `requirement-cpp-json.md`. The directories are `requirement-cpp-logger-folder.md`.
+The blocks below are the 1.1.2 source. The caller passes the component. The enumeration includes `LOGGER_LEVEL_CRITICAL`. Construction is the five-argument form. Quiet, streams, and `--verbose` are `requirement-cpp-output.md`. The JSON object is `requirement-cpp-json.md`. The directories are `requirement-cpp-logger-folder.md`.
 
 ```cpp
-static const char *logger_level_name(LoggerOutputLevel level)
+const char *Logger::logger_level_name(LoggerOutputLevel level)
 {
     switch (level) {
-        case LOGGER_LEVEL_INFO:    return "INFO";
-        case LOGGER_LEVEL_WARNING: return "WARNING";
-        case LOGGER_LEVEL_ERROR:   return "ERROR";
-        case LOGGER_LEVEL_DEBUG:   return "DEBUG";
-        case LOGGER_LEVEL_FATAL:   return "FATAL";
-        default:                 return "INFO";
+        case LOGGER_LEVEL_INFO:     return "INFO";
+        case LOGGER_LEVEL_WARNING:  return "WARNING";
+        case LOGGER_LEVEL_ERROR:    return "ERROR";
+        case LOGGER_LEVEL_CRITICAL: return "CRITICAL";
+        case LOGGER_LEVEL_FATAL:    return "FATAL";
+        case LOGGER_LEVEL_DEBUG:    return "DEBUG";
+        default:                    return "INFO";
     }
 }
 
-void Logger::logger_emit_chronicle(LoggerOutputLevel level, const char *message)
+void Logger::logger_emit_chronicle(LoggerOutputLevel level, const char *component, const char *message)
 {
     char timestamp[32];
-    time_t now = time(NULL);
-    struct tm *tm_ptr;
     const char *text = message ? message : "";
+    const char *part = component ? component : "";
     const char *level_name = logger_level_name(level);
 
-    tm_ptr = localtime(&now);
-    if (tm_ptr == NULL ||
-        strftime(timestamp, sizeof timestamp, "%Y-%m-%d %H:%M:%S", tm_ptr) == 0) {
-        g_strlcpy(timestamp, "1970-01-01 00:00:00", sizeof timestamp);
-    }
-
+    logger_format_timestamp(timestamp, sizeof timestamp);
     if (logger_stderr_level(level)) {
-        g_printerr("[%s] pid:%ld [%s] @%s :] %s\n",
-                   timestamp, (long)getpid(), level_name, LOG_COMPONENT, text);
-    } else {
+        if (part[0] != '\0') {
+            g_printerr("[%s] pid:%ld [%s] @%s :] %s\n",
+                       timestamp, (long)getpid(), level_name, part, text);
+        } else {
+            g_printerr("[%s] pid:%ld [%s] :] %s\n",
+                       timestamp, (long)getpid(), level_name, text);
+        }
+    } else if (part[0] != '\0') {
         g_print("[%s] pid:%ld [%s] @%s :] %s\n",
-                timestamp, (long)getpid(), level_name, LOG_COMPONENT, text);
+                timestamp, (long)getpid(), level_name, part, text);
+    } else {
+        g_print("[%s] pid:%ld [%s] :] %s\n",
+                timestamp, (long)getpid(), level_name, text);
     }
 }
 
-void Logger::logger_append_log_file(LoggerOutputLevel level, const char *message)
+void Logger::logger_append_log_file(LoggerOutputLevel level, const char *component, const char *message)
 {
     char timestamp[32];
-    time_t now;
-    struct tm *tm_ptr;
     FILE *file;
     const char *text = message ? message : "";
+    const char *part = component ? component : "";
 
     if (logger_log_path[0] == '\0' || logger_folder[0] == '\0') {
         return;
@@ -153,12 +173,7 @@ void Logger::logger_append_log_file(LoggerOutputLevel level, const char *message
         }
         return;
     }
-    now = time(NULL);
-    tm_ptr = localtime(&now);
-    if (tm_ptr == NULL ||
-        strftime(timestamp, sizeof timestamp, "%Y-%m-%d %H:%M:%S", tm_ptr) == 0) {
-        g_strlcpy(timestamp, "1970-01-01 00:00:00", sizeof timestamp);
-    }
+    logger_format_timestamp(timestamp, sizeof timestamp);
     file = fopen(logger_log_path, "a");
     if (file == NULL) {
         g_printerr("cannot open log file %s\n", logger_log_path);
@@ -167,13 +182,20 @@ void Logger::logger_append_log_file(LoggerOutputLevel level, const char *message
         }
         return;
     }
-    fprintf(file, "[%s] pid:%ld [%s] @%s :] %s\n",
-            timestamp, (long)getpid(), logger_level_name(level), LOG_COMPONENT, text);
+    if (part[0] != '\0') {
+        fprintf(file, "[%s] pid:%ld [%s] @%s :] %s\n",
+                timestamp, (long)getpid(), logger_level_name(level), part, text);
+    } else {
+        fprintf(file, "[%s] pid:%ld [%s] :] %s\n",
+                timestamp, (long)getpid(), logger_level_name(level), text);
+    }
     fclose(file);
 }
 
-void Logger::logger_log(LoggerOutputLevel level, const char *format, va_list ap)
+void Logger::logger_log(LoggerOutputLevel level, const char *component, const char *format, va_list ap)
 {
+    const char *part = component ? component : "";
+
     if (level == LOGGER_LEVEL_DEBUG && !logger_get_debug()) {
         return;
     }
@@ -183,7 +205,8 @@ void Logger::logger_log(LoggerOutputLevel level, const char *format, va_list ap)
 
     gchar *message = g_strdup_vprintf(format, ap_copy);
 
-    logger_append_log_file(level, message);
+    logger_note_dated_path();
+    logger_append_log_file(level, part, message);
 
     if (logger_json_mode) {
         gchar *escaped = logger_json_escape(message ? message : "");
@@ -192,19 +215,20 @@ void Logger::logger_log(LoggerOutputLevel level, const char *format, va_list ap)
                 logger_level_name(level),
                 escaped);
         g_free(escaped);
-    } else if (logger_stderr_level(level) || (logger_verbose && !logger_get_quiet())) {
-        logger_emit_chronicle(level, message);
+    } else if (logger_stderr_level(level) ||
+               (!logger_get_quiet() && (logger_verbose || debug_env_enabled))) {
+        logger_emit_chronicle(level, part, message);
     }
 
     g_free(message);
     va_end(ap_copy);
 }
 
-void logger_fatal(const char *format, ...)
+void Logger::logger_critical(const char *component, const char *format, ...)
 {
     va_list args;
     va_start(args, format);
-    logger_log(LOGGER_LEVEL_FATAL, format, args);
+    logger_log(LOGGER_LEVEL_CRITICAL, component, format, args);
     va_end(args);
 }
 ```
@@ -313,7 +337,7 @@ void Logger::logger_show_log_file(void)
 
 ## 3. Protection rule
 
-Future editors must not add a second logging API, change the §2.1 line, add `logger_set_debug`, put the date in another shape, write the file outside the log directory, or create a temporary file to hold the log.
+Future editors must not add a second logging API, change the §2.1 line, drop `CRITICAL` from the enumeration, hard-wire `@main` inside the writer, replace §2.0 with `Logger(int argc, char **argv)`, add `logger_set_debug`, put the date in another shape, write the file outside the log directory, or create a temporary file to hold the log.
 
 ## 4. Related artifacts
 
@@ -330,5 +354,12 @@ Future editors must not add a second logging API, change the §2.1 line, add `lo
 | `src/main/cpp/logger.cpp` | `logger_log` and `logger_emit_chronicle` |
 | `src/main/cpp/logger.h` | `logger_*` and `LOGGER_LEVEL_*` |
 
-**Last updated**: 2026-11-10
+## 5. Status history
+
+| Date | Status | Notes |
+|------|--------|-------|
+| 2026-11-11 | Active | §2.0 is the ChronicleLogger constructor order. §2.1 is the six-level `log_message` line, with an enumeration for the level and an optional component. The 1.1.1 source still uses `Logger(int argc, char **argv)`, omits `CRITICAL`, and always writes `@main`. |
+| 2026-11-11 | Active | Release 1.1.2 constructs `Logger` with the five arguments, includes `LOGGER_LEVEL_CRITICAL`, and writes `@component` only when the caller passes one. |
+
+**Last updated**: 2026-11-11
 **Owner**: Logger

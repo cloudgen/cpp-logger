@@ -4,6 +4,7 @@
 # This check builds one binary under /tmp. The child is started with HOME removed.
 # Cleanup deletes /tmp/cpp-logger-about-work. It does not delete /tmp.
 set -eu
+unset CONDA_PREFIX CONDA_DEFAULT_ENV VIRTUAL_ENV PYENV_VIRTUAL_ENV
 
 cd "$(dirname "$0")/.."
 
@@ -46,7 +47,7 @@ need_line() {
     fi
 }
 
-need_line "cpp-logger 1.1.1"
+need_line "cpp-logger 1.1.2"
 need_line "Console logger. Lines follow ChronicleLogger."
 need_line "Domain: No database. No configuration file."
 need_line "Runtime tools: none"
@@ -89,7 +90,7 @@ esac
 
 global_bin=/usr/local/bin/cpp-logger
 if [ -f "${global_bin}" ] && [ -x "${global_bin}" ]; then
-    global_value=1.1.1
+    global_value=1.1.2
 else
     global_value="not found"
 fi
@@ -98,7 +99,7 @@ need_line "    Global install (${global_bin}): ${global_value}"
 need_line "    Local install: not found"
 need_line "    Running from: ${running_from}"
 
-if ! printf '%s\n' "${about_out}" | grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\.000000 cpp-logger\(v1\.1\.1\)  \[CHECK SYSTEM\]:$' >/dev/null; then
+if ! printf '%s\n' "${about_out}" | grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\.000000 cpp-logger\(v1\.1\.2\)  \[CHECK SYSTEM\]:$' >/dev/null; then
     echo "[ERROR] host-check header"
     exit 1
 fi
@@ -206,7 +207,7 @@ page_json() {
     fi
     printf '%s\n' "${mode_out}" | grep -F '"command":"about"' >/dev/null
     printf '%s\n' "${mode_out}" | grep -F '"name":"cpp-logger"' >/dev/null
-    printf '%s\n' "${mode_out}" | grep -F '"version":"1.1.1"' >/dev/null
+    printf '%s\n' "${mode_out}" | grep -F '"version":"1.1.2"' >/dev/null
     printf '%s\n' "${mode_out}" | grep -F '"cpp_standard":"C++17"' >/dev/null
     printf '%s\n' "${mode_out}" | grep -F '"runtime_tools":"none"' >/dev/null
     printf '%s\n' "${mode_out}" | grep -F '"domain":"No database. No configuration file."' >/dev/null

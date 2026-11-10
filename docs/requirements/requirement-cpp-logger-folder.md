@@ -1,15 +1,15 @@
 **file**: docs/requirements/requirement-cpp-logger-folder.md
 **Status**: Active
-**Updated**: 2026-10-04
+**Updated**: 2026-11-11
 **Philosophy**: CIAO v2.10.2 / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
 
 ## 1. Purpose
 
 This file owns the application directory and the log directory for this C++ project. The dated file is `requirement-cpp-logger.md`. Install bins are `requirement-cpp-global-installation.md` and `requirement-cpp-local-installation.md`.
 
-Project-base-path is the application directory for the current environment. Root or sudo uses `/var/cpp-logger`. Every other user uses `$HOME/.app/cpp-logger`. The log directory is not this path. The cache directory is not this path. The install bin is not this path.
+Project-base-path is the application directory for the current environment. An explicit base directory is that path. When the caller does not pass one, the first match wins: the active conda prefix plus `/.app/cpp-logger`, else the active pyenv virtualenv plus `/.app/cpp-logger`, else `VIRTUAL_ENV` plus `/.app/cpp-logger`. When none of those is set, root or sudo uses `/var/cpp-logger` and every other user uses `$HOME/.app/cpp-logger`. The log directory is not this path. The cache directory is not this path. The install bin is not this path.
 
-Project-log-path is the log directory. It is the project-base-path plus `/log`. Root or sudo uses `/var/cpp-logger/log`. Every other user uses `$HOME/.app/cpp-logger/log`. The dated file sits inside this directory.
+Project-log-path is the log directory. An explicit log directory is that path. When the caller does not pass one, it is the project-base-path plus `/log`. The dated file sits inside this directory.
 
 The project's cache path is a different directory. A normal user uses `$HOME/.cache/cache-cpp-logger/` or `/dev/shm/cache/cache-cpp-logger`. Root or sudo uses `/var/cache/cpp-logger/`. This file does not create that cache directory.
 
@@ -17,7 +17,7 @@ The test command uses a stand-in. `--prefix <dir>` names `<dir>/var/cpp-logger` 
 
 ### 1.1 Human-facing
 
-**In one sentence:** Root or sudo logs under `/var/cpp-logger/log`, and every other user logs under `$HOME/.app/cpp-logger/log`.
+**In one sentence:** An explicit directory wins, then conda, pyenv, or `VIRTUAL_ENV`, and otherwise root logs under `/var/cpp-logger/log` and every other user under `$HOME/.app/cpp-logger/log`.
 
 | Box | Meaning | Example |
 |-----|---------|---------|
@@ -27,7 +27,7 @@ The test command uses a stand-in. `--prefix <dir>` names `<dir>/var/cpp-logger` 
 
 | Includes | Excludes |
 |----------|----------|
-| The two base paths and the two log directories | `$PREFIX/bin` and `$HOME/.local/bin` |
+| The base-directory order and the log directory | `$PREFIX/bin` and `$HOME/.local/bin` |
 
 | Surface | What you open | What for |
 |---------|---------------|----------|
@@ -35,6 +35,8 @@ The test command uses a stand-in. `--prefix <dir>` names `<dir>/var/cpp-logger` 
 | `--debug` | Two debug lines | Read `logger folder` and `log file` |
 
 For a normal run, `{{app-name}}` is `cpp-logger`. A later project uses its own name in the same places. That rule is `requirement-cpp-logger-portable.md`.
+
+When conda, pyenv, and `VIRTUAL_ENV` are unset, the two environments are:
 
 | Environment | cpp-base-path | cpp-log-path |
 |-------------|---------------|--------------|
@@ -51,11 +53,11 @@ For the test command, the literal directory `/tmp` stands in:
 ## 2. Core rules
 
 1. There are two environments. Root or sudo is a process whose effective user id is 0, including a process started with sudo. Every other effective user is the other environment.
-2. cpp-base-path for root or sudo is `/var/cpp-logger`. cpp-log-path is `/var/cpp-logger/log`. cpp-base-path for every other user is `$HOME/.app/cpp-logger`. cpp-log-path is `$HOME/.app/cpp-logger/log`.
+2. An explicit base directory is cpp-base-path. An explicit log directory is cpp-log-path. When both are empty, the first match wins: the active conda prefix plus `/.app/cpp-logger`, else the active pyenv virtualenv plus `/.app/cpp-logger`, else `VIRTUAL_ENV` plus `/.app/cpp-logger`. When none of those is set, cpp-base-path for effective user id 0 is `/var/cpp-logger` and cpp-log-path is `/var/cpp-logger/log`. For every other user, cpp-base-path is `$HOME/.app/cpp-logger` and cpp-log-path is `$HOME/.app/cpp-logger/log`. When the base is chosen and the log directory was not explicit, cpp-log-path is that base plus `/log`.
 3. A normal run uses those two paths. It does not read `--prefix`, `--home`, or `PREFIX` to choose a directory. When the other user's `HOME` is empty, the directory stays unresolved. The program does not call `getpwuid` and does not invent a path.
 4. The test command uses cpp-test-base-path and cpp-test-log-path. `--prefix <dir>` names `<dir>/var/cpp-logger` and `<dir>/var/cpp-logger/log`. `--home <dir>` names `<dir>/.app/cpp-logger` and `<dir>/.app/cpp-logger/log`. `--prefix /tmp` therefore names `/tmp/var/cpp-logger/log`. `--home /tmp` names `/tmp/.app/cpp-logger/log`. Those two directories are different. `--prefix` wins when both switches are present. The test command does not read `PREFIX`, `HOME`, or the effective user id.
 5. `--debug`, or a non-empty `DEBUG`, prints `logger folder <path>` for the log directory and `log file <path>` for the dated file. When the directory is unresolved the line is `logger folder unresolved`. Quiet still hides a human debug line.
-6. `--debug` does not create the directory. The directory is created only when a log line is appended, which is `requirement-cpp-logger.md`. The program does not use `mkstemp`.
+6. Construction creates the log directory when the log name is non-empty, which is `requirement-cpp-logger.md` §2.0. `--debug` does not create a directory by itself. The program does not use `mkstemp`.
 
 ### Sample code (this project)
 
@@ -142,5 +144,5 @@ Future editors must not invent a third environment, point this directory at an i
 | `docs/requirements/requirement-cpp-tests.md` | One test binary and the test command |
 | `src/main/cpp/logger.cpp` | Resolver |
 
-**Last updated**: 2026-10-04
+**Last updated**: 2026-11-11
 **Owner**: Logger folder

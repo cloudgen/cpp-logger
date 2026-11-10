@@ -1,10 +1,10 @@
-# Checklist: Ant, Gradle, and Meson
+# Checklist: Ant, Gradle, Meson, and build.sh
 
-**Filled run** for `requirement-cpp-ant.md`, `requirement-cpp-ant-coding-style.md`, `requirement-cpp-gradle.md`, `requirement-cpp-gradle-coding-style.md`, `requirement-cpp-meson.md`, `requirement-cpp-meson-coding-style.md`, and `requirement-cpp-dependencies.md`.
+**Filled run** for `requirement-cpp-ant.md`, `requirement-cpp-ant-coding-style.md`, `requirement-cpp-gradle.md`, `requirement-cpp-gradle-coding-style.md`, `requirement-cpp-meson.md`, `requirement-cpp-meson-coding-style.md`, `requirement-cpp-dependencies.md`, `requirement-cpp-build-sh.md`, and `requirement-cpp-build-sh-coding-style.md`.
 
 **Date:** 2026-11-10
 
-**Suite:** `tests/test-cpp-builds.sh` exited 0. The script reads the three build files and `build.sh`, then runs `ant compile` and `gradle assemble --offline`. It does not run `meson` or a package install. It does not call `mktemp`. It does not read, assign, or delete `HOME`. The child is started with `HOME` removed.
+**Suite:** `tests/test-cpp-builds.sh` exited 0. The script reads `build.xml`, `build.gradle`, `meson.build`, `build.sh`, and `project.sh`. It runs `ant compile` and `gradle assemble --offline`. It does not run `./build.sh`, `meson`, or a package install. It does not call `mktemp`. It does not read, assign, or delete `HOME`. The child is started with `HOME` removed.
 
 ## Live compile
 
@@ -30,6 +30,11 @@
 ## Dependencies
 
 - [x] **TP-CPP-DEPENDENCIES** — `pkg-config --exists glib-2.0` succeeded. `build.sh` and `meson.build` request `glib-2.0` and do not request `gtk+-3.0` or `webkit2gtk-4.1`
+
+## Shell
+
+- [x] **TP-CPP-BUILD-SH** — `build.sh` and `project.sh` start with `#!/bin/sh`. `build.sh` contains `. ./project.sh` and does not contain `source ./project.sh`. Neither file contains `[[`, `#!/bin/bash`, or `#!/usr/bin/env bash`. `build.sh` has a line `set -e`. Gradle runs the file with `sh`. The Ant generator writes `#!/bin/sh`. `sh -n` accepts both scripts
+- [x] **TP-CPP-BUILD-SH-STYLE** — `build.sh` defines `build_install_deps`, `build_place_binary`, `build_install_local`, `build_install_global`, `build_clean`, and `build_link`. Above each function, `GENERAL PURPOSE:`, `CIAO PRINCIPLES APPLIED:`, and `Last reviewed:` appear in that order. Those three labels also head the file, so each appears at least seven times. No bare `build()`, `clean()`, `install()`, `main()`, `help()`, `install_deps()`, `install_local()`, `install_global()`, or `place_built_binary()`. The `case` keeps `install|deps`, `install-local`, `install-global`, `clean`, and `build|""|simple`. No `out_info`, `out_warn`, `out_die`, or `out_text`. `project.sh` still defines `apt_install`, `apt_uninstall`, and `install`
 
 ## Verdict
 

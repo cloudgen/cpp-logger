@@ -10,7 +10,7 @@
 
 #define VERSION_MAJOR   1
 #define VERSION_MINOR   1
-#define VERSION_PATCH   1
+#define VERSION_PATCH   2
 
 #define PROJECT_DESCRIPTION "Console logger. Lines follow ChronicleLogger."
 

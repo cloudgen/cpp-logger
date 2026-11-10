@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 # Export project variables
 export PRJ=cpp-logger
 export SRC=src
