@@ -1,6 +1,6 @@
 **file**: docs/requirements/requirement-cpp-debug-mode.md
 **Status**: Active
-**Updated**: 2026-11-09
+**Updated**: 2026-11-11
 **Philosophy**: CIAO v2.10.2 / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
 
 ## 1. Purpose
@@ -9,12 +9,12 @@ This file owns when `logger_debug` prints. The call stays in `requirement-cpp-lo
 
 ### 1.1 Human-facing
 
-**In one sentence:** You start the program with `--debug` or `DEBUG=1` and the terminal shows the log lines, including each found switch and the start and end of component `main`.
+**In one sentence:** You start the program with `--debug`, or with `DEBUG` or `debug` set to `show`, `true`, or `1`, and the terminal shows the log lines, including each found switch and the start and end of component `main`.
 
 | Box | Meaning | Example |
 |-----|---------|---------|
 | You / this login | The person inspecting startup | You launch with debug on |
-| The other role | `logger.cpp` | It reads `DEBUG` once during init |
+| The other role | `logger.cpp` | It reads `DEBUG`, then `debug`, once during init |
 | Not this file | How quiet and JSON hide lines | `requirement-cpp-output.md` and `requirement-cpp-json.md` |
 
 | Includes | Excludes |
@@ -23,12 +23,12 @@ This file owns when `logger_debug` prints. The call stays in `requirement-cpp-lo
 
 | Surface | What you open | What for |
 |---------|---------------|----------|
-| The environment | `DEBUG` | Turn debug lines on |
+| The environment | `DEBUG` or `debug` | Turn debug lines on with `show`, `true`, or `1` |
 | The terminal | Debug lines | Read them |
 
 ## 2. Core rules
 
-1. `--debug` enables `logger_debug`. A non-empty `DEBUG` value enables the same predicate. An empty or unset `DEBUG`, with no `--debug`, leaves it off. `DEBUG=1` is the documented environment value. The `Logger` constructor reads `DEBUG` once.
+1. `--debug` enables `logger_debug`. The same predicate is true when `DEBUG` is `show`, `true`, or `1`, compared after ASCII lowercasing. An empty `DEBUG` falls through to the variable `debug` with the same three values. Any other value, including `yes` or a bare non-empty string, leaves the predicate off. An empty or unset pair, with no `--debug`, leaves it off. `DEBUG=1` is the documented environment value. `logger_parse_invocation` and the `Logger` constructor both read that pair. There is no second predicate.
 2. `logger_get_debug()` returns that captured flag. There is no `logger_set_debug`.
 3. Quiet mode hides the human debug line even when debug is on. Debug mode shows stdout log lines while the run is not quiet and not JSON. `--verbose` shows them the same way. In JSON mode that same call is the JSON object from `requirement-cpp-json.md` when this predicate is on. `--verbose` and `--debug` do not add the human line in JSON mode.
 4. When debug is on, the first debug lines name each switch that was present on the command. A switch that was not passed is not named. The text is `switch --quiet`, `switch --json`, `switch --debug`, `switch --verbose`, `switch --prefix <dir>`, `switch --home <dir>`, or `switch --log-datestamp <YYYYMMDD>`. `DEBUG`, `QUIET`, and `JSON` are environment variables, so they are not switch lines. `help`, `about`, `test`, `list`, and `show` are commands, so they are not switch lines.
@@ -75,7 +75,7 @@ void logger_debug(const char *format, ...)
 
 ## 3. Protection rule
 
-Future editors must not add a second debug predicate beside `--debug` and `DEBUG`, and must not add `logger_set_debug`.
+Future editors must not add a second debug predicate beside `--debug` and the `show` / `true` / `1` check on `DEBUG` and `debug`, must not treat any other non-empty `DEBUG` as on, and must not add `logger_set_debug`.
 
 ## 4. Related artifacts
 
@@ -89,5 +89,5 @@ Future editors must not add a second debug predicate beside `--debug` and `DEBUG
 | `docs/requirements/requirement-cpp-parameters.md` | The `--debug` and `DEBUG` rows |
 | `src/main/cpp/logger.cpp` | The predicate and `logger_get_debug` |
 
-**Last updated**: 2026-11-09
+**Last updated**: 2026-11-11
 **Owner**: Debug mode

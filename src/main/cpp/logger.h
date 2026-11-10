@@ -24,9 +24,10 @@
 // =========================================================================
 // Quiet and debug are read through functions. The flags stay inside logger.cpp.
 // Stdout log lines are hidden unless --verbose or debug mode is set. --verbose and debug mode have no effect while quiet or JSON is on.
-// ERROR and FATAL stay on stderr without --verbose. Quiet does not hide them.
+// ERROR, CRITICAL, and FATAL use stderr when a human line is shown. Quiet hides every human console line, including those three. The dated file still receives the line.
 // JSON mode forces quiet, so logger_set_quiet cannot turn quiet off while JSON is on.
-// Debug is captured once when main constructs Logger, from --debug or DEBUG. There is no logger_set_debug.
+// Debug is captured once when main constructs Logger, from --debug or from DEBUG or debug set to show, true, or 1. There is no logger_set_debug.
+// logger_persistence_storage returns the log directory. It does not create that directory.
 // Two environments: root or sudo uses /var/<name>/log. Every other user uses $HOME/.app/<name>/log.
 // test, list, and show use --prefix <dir> for <dir>/var/<name>/log and --home <dir> for <dir>/.app/<name>/log.
 // list prints regular *.log names. show prints the file named by --log-datestamp.
@@ -64,6 +65,7 @@ public:
     void logger_set_quiet(bool quiet);
     bool logger_get_quiet(void);
     bool logger_get_debug(void);
+    const char *logger_persistence_storage(void);
     void logger_log(LoggerOutputLevel level, const char *component, const char *format, va_list ap);
     void logger_info(const char *component, const char *format, ...);
     void logger_warn(const char *component, const char *format, ...);
@@ -171,12 +173,13 @@ int logger_is_test_verb(void);
 void logger_set_quiet(bool quiet);
 bool logger_get_quiet(void);
 bool logger_get_debug(void);
+const char *logger_persistence_storage(void);
 void logger_info(const char *component, const char *format, ...);
 void logger_warn(const char *component, const char *format, ...);
 void logger_error(const char *component, const char *format, ...);
 void logger_critical(const char *component, const char *format, ...);
 void logger_fatal(const char *component, const char *format, ...);
-void logger_debug(const char *component, const char *format, ...);     // Controlled by DEBUG=1
+void logger_debug(const char *component, const char *format, ...);     // Controlled by --debug or DEBUG/debug show, true, or 1
 
 /* Purpose: apply the 7-day package and the 30-day removal to other dated names.
    Parameters: folder is the log directory. active_basename is the plain file

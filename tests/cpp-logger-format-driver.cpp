@@ -28,6 +28,29 @@ int main(int argc, char **argv)
         Logger logger("CppLogger", "/tmp/cpp-logger-format-quiet", NULL, true, NULL);
         return 0;
     }
+    if (strcmp(argv[1], "errors") == 0) {
+        Logger logger("cpp-logger", "/tmp/cpp-logger-format-errors", NULL, true, NULL);
+        logger.logger_error("main", "hidden error");
+        logger.logger_critical("main", "hidden critical");
+        logger.logger_fatal("main", "hidden fatal");
+        g_print("storage:%s\n", logger.logger_persistence_storage());
+        return 0;
+    }
+    if (strcmp(argv[1], "jsonerr") == 0) {
+        Logger logger("cpp-logger", "/tmp/cpp-logger-format-jsonerr", NULL, false, NULL);
+        logger.logger_error("main", "json error");
+        return 0;
+    }
+    if (strcmp(argv[1], "token") == 0) {
+        Logger logger("cpp-logger", "/tmp/cpp-logger-format-token", NULL, false, NULL);
+        if (logger.logger_get_debug()) {
+            g_print("debug-on\n");
+        } else {
+            g_print("debug-off\n");
+        }
+        logger.logger_debug("main", "token line");
+        return 0;
+    }
     if (strcmp(argv[1], "fail") == 0) {
         Logger logger("cpp-logger", "/tmp/cpp-logger-format-fail", NULL, false, fail_clock);
         logger.logger_info("main", "clock failed");

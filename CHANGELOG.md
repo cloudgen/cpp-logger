@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.3] - 2026-11-11
+
+### Changed
+- Quiet hides every human console line, including error, critical, and fatal. The dated file still receives the line. `--verbose` and debug do not override quiet.
+- Debug mode is `--debug`, or `DEBUG` or `debug` set to `show`, `true`, or `1`. A different non-empty value does not enable debug.
+- `logger_persistence_storage` returns the log directory. The about page prints that directory as Persistence storage and does not create it.
+- JSON mode stays this program's machine channel. An error event is still one JSON object, and the human line stays off.
+- `project.h`, `project.ini`, `meson.build`, `build.gradle`, `build.xml`, and the README Version badge say 1.1.3.
+
 ## [1.1.2] - 2026-11-11
 
 ### Changed

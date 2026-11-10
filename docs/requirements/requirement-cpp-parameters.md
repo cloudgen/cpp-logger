@@ -45,7 +45,7 @@ On a normal run the effective user selects cpp-base-path. `test`, `list`, and `s
 | `list` | cpp-test-purpose-command. Requires `--prefix` or `--home`. Prints regular `*.log` names in that log directory, one per line, sorted. `--json` or `JSON=1` prints one object. Does not append a line |
 | `show` | cpp-test-purpose-command. Requires `--prefix` or `--home`, and `--log-datestamp`. Prints that dated file. `--json` or `JSON=1` prints one object. A missing file exits 1 |
 | `--verbose` | Display stdout log lines. It works only when the run is not quiet and not JSON (`requirement-cpp-output.md`) |
-| `--quiet` | Suppress non-error human lines. `--verbose` does not override this (`requirement-cpp-output.md`) |
+| `--quiet` | Hide every human console line, including error, critical, and fatal. The dated file still receives the line. `--verbose` and debug do not override this (`requirement-cpp-output.md`) |
 | `--json` | JSON mode (`requirement-cpp-json.md`). Every verb prints JSON. `--verbose` does not add a human line |
 | `--debug` | cpp-test-purpose-switch, and the normal debug flag. Debug mode shows stdout log lines when the run is not quiet and not JSON (`requirement-cpp-output.md`) |
 | `--prefix <dir>` | cpp-test-purpose-switch for root or sudo. cpp-test-log-path is `<dir>/var/cpp-logger/log` |
@@ -54,7 +54,7 @@ On a normal run the effective user selects cpp-base-path. `test`, `list`, and `s
 
 | Variable | Meaning |
 |----------|---------|
-| `DEBUG` | A non-empty value enables `logger_debug`. `DEBUG=1` is the usual value. Same predicate as `--debug` |
+| `DEBUG` | `show`, `true`, or `1`, compared after ASCII lowercasing, enables `logger_debug`. An empty `DEBUG` falls through to `debug` with the same three values. `DEBUG=1` is the documented value. `DEBUG=yes` does not enable debug. Same predicate as `--debug` |
 | `QUIET=1` | Same as `--quiet` |
 | `JSON=1` | Same as `--json` |
 | `HOME` | On a normal run by any user other than root or sudo, the base path is `$HOME/.app/cpp-logger`. `test`, `list`, and `show` ignore it. The binary does not read `PREFIX` for a log directory |

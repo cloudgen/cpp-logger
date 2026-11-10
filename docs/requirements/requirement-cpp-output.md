@@ -9,7 +9,7 @@ This file owns the console channel. Every product message goes through the logge
 
 ### 1.1 Human-facing
 
-**In one sentence:** Stdout log lines stay hidden until you pass `--verbose` or turn debug mode on, and neither one shows them while the run is quiet or JSON.
+**In one sentence:** Stdout log lines stay hidden until you pass `--verbose` or turn debug mode on, quiet hides every human console line including error, critical, and fatal, and neither `--verbose` nor debug shows a human line while the run is quiet or JSON.
 
 | Box | Meaning | Example |
 |-----|---------|---------|
@@ -28,9 +28,9 @@ This file owns the console channel. Every product message goes through the logge
 
 | You do… | What it means | What you type |
 |---------|---------------|---------------|
-| Leave the default | Stdout log lines stay hidden. The error, critical, and fatal lines on stderr stay | `cpp-logger` |
+| Leave the default | Stdout log lines stay hidden. Error, critical, and fatal human lines use stderr | `cpp-logger` |
 | Show stdout log lines | Info, warning, and debug human lines appear. Quiet and JSON still hide them | `--verbose` or `--debug` |
-| Hide them again | `--verbose` does not bring stdout lines back | `--verbose --quiet` |
+| Hide them again | Quiet hides every human console line. `--verbose` and debug do not bring one back | `--verbose --quiet` |
 
 ## 2. Core rules
 
@@ -43,8 +43,8 @@ This file owns the console channel. Every product message goes through the logge
 | `ERROR`, `CRITICAL`, `FATAL` | stderr (`g_printerr`) |
 
 - `logger_set_quiet(bool)` stores quiet mode. `logger_get_quiet()` returns that flag. The flags are not exported from `logger.h`. There is no `logger_set_verbose`. `--verbose` stays inside `logger.cpp`.
-- Stdout human lines (`INFO`, `WARNING`, and `DEBUG`) are hidden by default. `--verbose` displays those lines only when the run is not quiet and not JSON. Debug mode (`--debug` or a non-empty `DEBUG`) displays those same lines only when the run is not quiet and not JSON. Quiet keeps them hidden. JSON mode keeps them hidden. Neither switch overrides quiet or JSON.
-- The human `ERROR`, `CRITICAL`, and `FATAL` lines use stderr and stay visible without `--verbose`. Quiet does not hide them. `CRITICAL` is `LOGGER_LEVEL_CRITICAL` in `requirement-cpp-logger.md`.
+- Stdout human lines (`INFO`, `WARNING`, and `DEBUG`) are hidden by default. `--verbose` displays those lines only when the run is not quiet and not JSON. Debug mode (`--debug`, or `DEBUG` or `debug` set to `show`, `true`, or `1`) displays those same lines only when the run is not quiet and not JSON. Quiet keeps them hidden. JSON mode keeps them hidden. Neither switch overrides quiet or JSON.
+- The human `ERROR`, `CRITICAL`, and `FATAL` lines use stderr when they are shown, and they are shown without `--verbose`. Quiet hides those human lines too. The dated file still receives them. `CRITICAL` is `LOGGER_LEVEL_CRITICAL` in `requirement-cpp-logger.md`. ChronicleLogger `prn` and `prn_err` both return without printing while quiet. This console gate matches that. A normal run still hides stdout info, warning, and debug until `--verbose` or debug mode. That default is this program's command-line gate.
 - Hiding stdout does not skip the dated file. The human line is still appended, which is `requirement-cpp-logger.md`. `help` is not a log line and still prints.
 - While JSON mode is on, this human line is not what the terminal shows. `requirement-cpp-json.md` owns that mode. JSON mode implies quiet, and a call that would clear quiet does not clear it. `--verbose` does not add the human line beside the JSON object.
 - `logger_get_debug()` is declared beside the quiet accessors. When debug is enabled is `requirement-cpp-debug-mode.md`. There is no `logger_set_debug`. A debug event is still a stdout log line. Debug mode shows it, and `--verbose` shows it, while the run is not quiet and not JSON.
@@ -52,7 +52,7 @@ This file owns the console channel. Every product message goes through the logge
 
 ### Sample code (this project)
 
-From `src/main/cpp/logger.cpp`. The 1.1.2 source returns true from `logger_stderr_level` for `LOGGER_LEVEL_ERROR`, `LOGGER_LEVEL_CRITICAL`, and `LOGGER_LEVEL_FATAL`. The full `logger_log` body is the sample in `requirement-cpp-logger.md`. The append runs before this test.
+From `src/main/cpp/logger.cpp`. The 1.1.3 source returns true from `logger_stderr_level` for `LOGGER_LEVEL_ERROR`, `LOGGER_LEVEL_CRITICAL`, and `LOGGER_LEVEL_FATAL`. The full `logger_log` body is the sample in `requirement-cpp-logger.md`. The append runs before this test. Quiet is tested before the stream choice.
 
 ```cpp
 void logger_set_quiet(bool quiet)
@@ -85,15 +85,15 @@ int Logger::logger_stderr_level(LoggerOutputLevel level)
                 logger_level_name(level),
                 escaped);
         g_free(escaped);
-    } else if (logger_stderr_level(level) ||
-               (!logger_get_quiet() && (logger_verbose || debug_env_enabled))) {
+    } else if (!logger_get_quiet() &&
+               (logger_stderr_level(level) || logger_verbose || debug_env_enabled)) {
         logger_emit_chronicle(level, part, message);
     }
 ```
 
 ## 3. Protection rule
 
-Future editors must not export the quiet flag, print a product line from outside `logger.cpp`, let quiet hide a human `ERROR`, `CRITICAL`, or `FATAL` line, or let `--verbose` reveal a stdout log line while quiet or JSON is on.
+Future editors must not export the quiet flag, print a product line from outside `logger.cpp`, let quiet leave a human `ERROR`, `CRITICAL`, or `FATAL` line on the console, drop that line from the dated file, or let `--verbose` or debug reveal a human log line while quiet or JSON is on.
 
 ## 4. Related artifacts
 

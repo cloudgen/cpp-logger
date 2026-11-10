@@ -45,7 +45,7 @@ This file owns the order of implementation for the ship unit. Object-oriented co
 
 ### 2.1 Implementation notes (this project)
 
-The ship unit is `src/main/cpp/logger.h`, `src/main/cpp/logger.cpp`, `src/main/cpp/main.cpp`, and `src/main/cpp/project.h`. `logger.h` declares `class Logger`. The allowed constructor is the five-argument form in `requirement-cpp-logger.md` §2.0. `main.cpp` parses `argc` and `argv`, then constructs `Logger` with the log name, the log directory, the base directory, quiet, and the clock. It declares no second type. The `logger_*` names stay in `extern "C"` and forward to that object. The 1.1.2 source writes `Logger logger(PROJECT_NAME, logdir, basedir, quiet, NULL);`.
+The ship unit is `src/main/cpp/logger.h`, `src/main/cpp/logger.cpp`, `src/main/cpp/main.cpp`, and `src/main/cpp/project.h`. `logger.h` declares `class Logger`. The allowed constructor is the five-argument form in `requirement-cpp-logger.md` §2.0. `main.cpp` parses `argc` and `argv`, then constructs `Logger` with the log name, the log directory, the base directory, quiet, and the clock. It declares no second type. The `logger_*` names stay in `extern "C"` and forward to that object. The 1.1.3 source writes `Logger logger(PROJECT_NAME, logdir, basedir, quiet, NULL);`.
 
 The target type is `Logger`. The declaration lives in `logger.h`. The method bodies live in `logger.cpp`. `main.cpp` constructs it at the call site:
 
@@ -53,7 +53,7 @@ The target type is `Logger`. The declaration lives in `logger.h`. The method bod
 Logger logger(logname, logdir, basedir, is_quiet, clock);
 ```
 
-The 1.1.2 call in this position is `Logger logger(PROJECT_NAME, logdir, basedir, quiet, NULL);`. The 1.1.1 call `Logger logger(argc, argv);` is the earlier record.
+The 1.1.3 call in this position is `Logger logger(PROJECT_NAME, logdir, basedir, quiet, NULL);`. The 1.1.1 call `Logger logger(argc, argv);` is the earlier record.
 
 | Type | File | Job |
 |------|------|-----|
@@ -121,6 +121,7 @@ Public methods:
 | `logger_set_quiet(bool quiet)` |
 | `logger_get_quiet(void)` |
 | `logger_get_debug(void)` |
+| `logger_persistence_storage(void)` |
 | `logger_log(LoggerOutputLevel level, const char *format, va_list ap)` |
 | `logger_info(const char *format, ...)` |
 | `logger_warn(const char *format, ...)` |
@@ -165,7 +166,7 @@ Private methods:
 
 `logger_filename_cmp` is a private static method. `g_slist_insert_sorted` takes a function pointer with no object parameter.
 
-The collection is 1 constructor, 13 public methods, 26 private non-static methods, and 1 private static method. A function added in `logger.cpp` after these tables is collected into the matching table in the same change. A new behavior after the move is a method on `Logger` first. That later method is not invented during this collection. `logger_critical` is required by `requirement-cpp-logger.md` and is not in the public-method table above. The constructor row is the 1.1.1 record. Step 4 is the allowed constructor.
+The collection is 1 constructor, 14 public methods, 26 private non-static methods, and 1 private static method. `logger_persistence_storage(void)` returns the log directory. A function added in `logger.cpp` after these tables is collected into the matching table in the same change. A new behavior after the move is a method on `Logger` first. That later method is not invented during this collection. `logger_critical` is required by `requirement-cpp-logger.md` and is not in the public-method table above. The constructor row is the 1.1.1 record. Step 4 is the allowed constructor.
 
 3. **Declare the class.** `logger.h` declares `class Logger` with the collected members and the collected methods. `logger.cpp` holds the method bodies. The present `logger_*` names remain only as wrappers that forward to that object. Unbound `logger_maintain_directory` constructs `Logger cold(-1, NULL)` and calls the method on that object.
 
@@ -240,6 +241,7 @@ Future editors must not add a new `logger_*` function for a behavior that does n
 | 2026-11-10 | Active | `tests/test-cpp-oop.sh` exited 0. The seven existing suites exited 0. TP-CPP-OOP is pass for `Logger logger(argc, argv);` |
 | 2026-11-11 | Active | The allowed constructor is the five-argument ChronicleLogger form in `requirement-cpp-logger.md` §2.0. The 1.1.1 call `Logger logger(argc, argv);` is not that constructor. TP-CPP-OOP returns to todo |
 | 2026-11-11 | Active | Release 1.1.2 writes the five-argument constructor. `tests/test-cpp-oop.sh` exits 0 on that call. TP-CPP-OOP is pass |
+| 2026-11-11 | Active | Release 1.1.3 adds `logger_persistence_storage`. The same script exits 0 for quiet errors, the log-directory return, and the debug tokens. TP-CPP-OOP stays pass |
 
 **Last updated**: 2026-11-11
 **Owner**: OOP

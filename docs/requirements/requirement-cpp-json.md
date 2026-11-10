@@ -1,11 +1,11 @@
 **file**: docs/requirements/requirement-cpp-json.md
 **Status**: Active
-**Updated**: 2026-11-10
+**Updated**: 2026-11-11
 **Philosophy**: CIAO v2.10.2 / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
 
 ## 1. Purpose
 
-This file owns JSON mode. JSON mode implies quiet. Every CLI verb prints JSON and does not print its human text beside that JSON. A log event is one object per event. `help`, `about`, `list`, and `show` each print one object. `test` prints one object per log event it emits.
+This file owns JSON mode. JSON mode implies quiet. Every CLI verb prints JSON and does not print its human text beside that JSON. A log event is one object per event. `help`, `about`, `list`, and `show` each print one object. `test` prints one object per log event it emits. ChronicleLogger has no JSON mode. This product keeps JSON as its machine channel. An error, critical, or fatal event is still one object, and the human line stays off.
 
 ### 1.1 Human-facing
 
@@ -119,7 +119,7 @@ A verb that exits 1 in JSON mode prints one object on stdout and does not print 
 `about` uses the same reads as `requirement-cpp-about.md`. Strings stay empty when the page leaves the value empty. `inside_docker` and `tty` are booleans. `pid` is a number. `global` and `local` stay `not found` or the version string.
 
 ```json
-{"command":"about","name":"cpp-logger","version":"1.1.2","description":"Console logger. Lines follow ChronicleLogger.","domain":"No database. No configuration file.","runtime_tools":"none","entry_points":"cpp-logger","host":{"stamp":"2026-11-10 10:01:34.000000","compiler":"g++ 13.3.0","cpp_standard":"C++17","operation_system":"Linux","architecture":"x86_64","current_user":"user","shell":"/bin/bash","inside_docker":false,"location":"/tmp/cpp-logger-json-smoke/cpp-logger","pid":1,"cache_folder_used":"/dev/shm/cache/cache-cpp-logger","cache_folder_preferred":"/dev/shm/cache/cache-cpp-logger","cache_folder_1st_fallback":"","cache_folder_2nd_fallback":"","persistence_storage":"","tty":false},"install":{"global_path":"/usr/local/bin/cpp-logger","global":"not found","local_path":"","local":"not found","running_from":"/tmp/cpp-logger-json-smoke/cpp-logger"}}
+{"command":"about","name":"cpp-logger","version":"1.1.3","description":"Console logger. Lines follow ChronicleLogger.","domain":"No database. No configuration file.","runtime_tools":"none","entry_points":"cpp-logger","host":{"stamp":"2026-11-10 10:01:34.000000","compiler":"g++ 13.3.0","cpp_standard":"C++17","operation_system":"Linux","architecture":"x86_64","current_user":"user","shell":"/bin/bash","inside_docker":false,"location":"/tmp/cpp-logger-json-smoke/cpp-logger","pid":1,"cache_folder_used":"/dev/shm/cache/cache-cpp-logger","cache_folder_preferred":"/dev/shm/cache/cache-cpp-logger","cache_folder_1st_fallback":"","cache_folder_2nd_fallback":"","persistence_storage":"","tty":false},"install":{"global_path":"/usr/local/bin/cpp-logger","global":"not found","local_path":"","local":"not found","running_from":"/tmp/cpp-logger-json-smoke/cpp-logger"}}
 ```
 
 ```json

@@ -47,7 +47,7 @@ need_line() {
     fi
 }
 
-need_line "cpp-logger 1.1.2"
+need_line "cpp-logger 1.1.3"
 need_line "Console logger. Lines follow ChronicleLogger."
 need_line "Domain: No database. No configuration file."
 need_line "Runtime tools: none"
@@ -90,7 +90,7 @@ esac
 
 global_bin=/usr/local/bin/cpp-logger
 if [ -f "${global_bin}" ] && [ -x "${global_bin}" ]; then
-    global_value=1.1.2
+    global_value=1.1.3
 else
     global_value="not found"
 fi
@@ -99,7 +99,7 @@ need_line "    Global install (${global_bin}): ${global_value}"
 need_line "    Local install: not found"
 need_line "    Running from: ${running_from}"
 
-if ! printf '%s\n' "${about_out}" | grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\.000000 cpp-logger\(v1\.1\.2\)  \[CHECK SYSTEM\]:$' >/dev/null; then
+if ! printf '%s\n' "${about_out}" | grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\.000000 cpp-logger\(v1\.1\.3\)  \[CHECK SYSTEM\]:$' >/dev/null; then
     echo "[ERROR] host-check header"
     exit 1
 fi
@@ -207,7 +207,7 @@ page_json() {
     fi
     printf '%s\n' "${mode_out}" | grep -F '"command":"about"' >/dev/null
     printf '%s\n' "${mode_out}" | grep -F '"name":"cpp-logger"' >/dev/null
-    printf '%s\n' "${mode_out}" | grep -F '"version":"1.1.2"' >/dev/null
+    printf '%s\n' "${mode_out}" | grep -F '"version":"1.1.3"' >/dev/null
     printf '%s\n' "${mode_out}" | grep -F '"cpp_standard":"C++17"' >/dev/null
     printf '%s\n' "${mode_out}" | grep -F '"runtime_tools":"none"' >/dev/null
     printf '%s\n' "${mode_out}" | grep -F '"domain":"No database. No configuration file."' >/dev/null
@@ -230,6 +230,36 @@ page_json() {
 page_json "${bin}" --json about
 page_json "${bin}" about --json
 page_json env JSON=1 "${bin}" about
+
+venv=/tmp/cpp-logger-about-venv
+rm -rf "${venv}"
+venv_out=$(env -u HOME -u PREFIX -u CONDA_PREFIX -u CONDA_DEFAULT_ENV -u PYENV_VIRTUAL_ENV \
+    VIRTUAL_ENV="${venv}" "${bin}" about) || {
+    echo "[ERROR] virtualenv about exited non-zero"
+    exit 1
+}
+if ! printf '%s\n' "${venv_out}" | grep -F -x "    Persistence storage: ${venv}/.app/cpp-logger/log" >/dev/null; then
+    echo "[ERROR] persistence storage is not the log folder"
+    exit 1
+fi
+if [ -e "${venv}" ]; then
+    echo "[ERROR] about created the virtualenv log folder"
+    exit 1
+fi
+venv_json=$(env -u HOME -u PREFIX -u CONDA_PREFIX -u CONDA_DEFAULT_ENV -u PYENV_VIRTUAL_ENV \
+    VIRTUAL_ENV="${venv}" "${bin}" --json about) || {
+    echo "[ERROR] virtualenv about JSON exited non-zero"
+    exit 1
+}
+if ! printf '%s\n' "${venv_json}" | grep -F "\"persistence_storage\":\"${venv}/.app/cpp-logger/log\"" >/dev/null; then
+    echo "[ERROR] JSON persistence storage is not the log folder"
+    exit 1
+fi
+if [ -e "${venv}" ]; then
+    echo "[ERROR] JSON about created the virtualenv log folder"
+    exit 1
+fi
+rm -rf "${venv}"
 
 if [ -d /tmp/.app/cpp-logger ]; then
     echo "[ERROR] about created a log directory"

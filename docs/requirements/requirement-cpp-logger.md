@@ -51,10 +51,11 @@ The logger object is constructed with five arguments: the log name, an optional 
 7. When that file can be opened for append, write one newline and close the file. A permission failure does not abort construction. This newline is not a formatted log line.
 8. `main` parses `argc` and `argv`. That parse is not this constructor. `main` then constructs `Logger` with the five arguments. `--prefix` and `--home` on `test`, `list`, and `show` supply an explicit directory and stay `requirement-cpp-logger-folder.md`.
 
-The 1.1.2 source constructs `Logger` with the log name, the log directory, the base directory, quiet, and the clock. An empty name returns before a directory is created. Construction does not emit `cpp-logger Output System initialized`. `main` calls `logger_parse_invocation` and then that constructor.
+The 1.1.3 source constructs `Logger` with the log name, the log directory, the base directory, quiet, and the clock. An empty name returns before a directory is created. Construction does not emit `cpp-logger Output System initialized`. `main` calls `logger_parse_invocation` and then that constructor.
 - The translation unit is `src/main/cpp/logger.cpp`. The header is `src/main/cpp/logger.h`. There is no `logger.c`, no `output.c`, and no `output.h`.
 - `logger_log` takes `va_list` by value. It uses `va_copy` before `g_strdup_vprintf`. The signature does not go back to `...`.
-- A non-empty `DEBUG` enables `logger_debug`. That predicate is `requirement-cpp-debug-mode.md`. There is no `logger_set_debug`.
+- `logger_debug` is enabled by `--debug`, or by `DEBUG` or `debug` set to `show`, `true`, or `1`. That predicate is `requirement-cpp-debug-mode.md`. There is no `logger_set_debug`.
+- `logger_persistence_storage()` returns the log directory from steps 3 and 4, or an empty string when that directory is unresolved. The read does not create the directory. The about page prints that return.
 
 ### 2.1 Logger format
 
@@ -115,7 +116,7 @@ The file is `cpp-logger-<YYYYMMDD>.log` inside cpp-log-path, or inside cpp-test-
 
 ### Sample code (this project)
 
-The blocks below are the 1.1.2 source. The caller passes the component. The enumeration includes `LOGGER_LEVEL_CRITICAL`. Construction is the five-argument form. Quiet, streams, and `--verbose` are `requirement-cpp-output.md`. The JSON object is `requirement-cpp-json.md`. The directories are `requirement-cpp-logger-folder.md`.
+The blocks below are the 1.1.3 source. The caller passes the component. The enumeration includes `LOGGER_LEVEL_CRITICAL`. Construction is the five-argument form. Quiet, streams, and `--verbose` are `requirement-cpp-output.md`. The JSON object is `requirement-cpp-json.md`. The directories are `requirement-cpp-logger-folder.md`.
 
 ```cpp
 const char *Logger::logger_level_name(LoggerOutputLevel level)
@@ -215,8 +216,8 @@ void Logger::logger_log(LoggerOutputLevel level, const char *component, const ch
                 logger_level_name(level),
                 escaped);
         g_free(escaped);
-    } else if (logger_stderr_level(level) ||
-               (!logger_get_quiet() && (logger_verbose || debug_env_enabled))) {
+    } else if (!logger_get_quiet() &&
+               (logger_stderr_level(level) || logger_verbose || debug_env_enabled)) {
         logger_emit_chronicle(level, part, message);
     }
 
@@ -360,6 +361,7 @@ Future editors must not add a second logging API, change the §2.1 line, drop `C
 |------|--------|-------|
 | 2026-11-11 | Active | §2.0 is the ChronicleLogger constructor order. §2.1 is the six-level `log_message` line, with an enumeration for the level and an optional component. The 1.1.1 source still uses `Logger(int argc, char **argv)`, omits `CRITICAL`, and always writes `@main`. |
 | 2026-11-11 | Active | Release 1.1.2 constructs `Logger` with the five arguments, includes `LOGGER_LEVEL_CRITICAL`, and writes `@component` only when the caller passes one. |
+| 2026-11-11 | Active | Release 1.1.3 hides every human console line while quiet, accepts debug values `show`, `true`, and `1`, and returns the log directory from `logger_persistence_storage`. |
 
 **Last updated**: 2026-11-11
 **Owner**: Logger

@@ -195,12 +195,47 @@ static int env_is_one(const char *name)
     return atoi(value) == 1 || strcmp(value, "1") == 0;
 }
 
+/* Purpose: the same debug predicate as ChronicleLogger isDebug.
+   DEBUG is read first. An empty DEBUG falls through to debug.
+   The value matches show, true, or 1 after ASCII lowercasing.
+   Any other value, including a bare non-empty string, leaves debug off. */
+static int logger_env_debug_token(void)
+{
+    const char *value;
+    char folded[8];
+    size_t n;
+
+    value = getenv("DEBUG");
+    if (value == NULL || value[0] == '\0') {
+        value = getenv("debug");
+    }
+    if (value == NULL) {
+        return 0;
+    }
+    n = 0;
+    while (value[n] != '\0' && n + 1 < sizeof folded) {
+        char c = value[n];
+
+        if (c >= 'A' && c <= 'Z') {
+            c = (char)(c - 'A' + 'a');
+        }
+        folded[n] = c;
+        n++;
+    }
+    if (value[n] != '\0') {
+        return 0;
+    }
+    folded[n] = '\0';
+    return strcmp(folded, "show") == 0
+        || strcmp(folded, "true") == 0
+        || strcmp(folded, "1") == 0;
+}
+
 /* Purpose: read argc and argv before any Logger exists.
    A rejected command exits here, so construction does not create a file.
    JSON=1 is read before the scan. help and about run after the scan. */
 void logger_parse_invocation(int argc, char **argv, const char **logdir, const char **basedir, bool *quiet)
 {
-    const char *debug_env;
     char tail[256];
     const char *dir;
 
@@ -211,8 +246,7 @@ void logger_parse_invocation(int argc, char **argv, const char **logdir, const c
     if (env_is_one("QUIET")) {
         g_parsed.quiet = 1;
     }
-    debug_env = getenv("DEBUG");
-    if (debug_env != NULL && debug_env[0] != '\0') {
+    if (logger_env_debug_token()) {
         g_parsed.debug = 1;
     }
 
@@ -522,7 +556,7 @@ const char *Logger::logger_take_value(int argc, char **argv, int *index, const c
 //
 // Parameters:
 //   Input:
-//     - quiet : bool - true hides non-error lines
+//     - quiet : bool - true hides every human console line
 //   Output/Return:
 //     - logger_get_quiet and logger_get_debug return bool
 //
@@ -533,7 +567,7 @@ const char *Logger::logger_take_value(int argc, char **argv, int *index, const c
 // Why This Design:
 //   Callers change quiet only through logger_set_quiet.
 //   JSON mode forces quiet, so the setter cannot turn quiet off while JSON is on.
-//   Debug is environment-only. A getter exposes the captured flag. There is no setter.
+//   Debug is --debug or DEBUG/debug set to show, true, or 1. A getter exposes the captured flag. There is no setter.
 //
 // CIAO Principles Applied:
 //   - Caution: JSON mode cannot be undone by the quiet setter
@@ -563,6 +597,13 @@ bool Logger::logger_get_quiet(void)
 bool Logger::logger_get_debug(void)
 {
     return debug_env_enabled;
+}
+
+/* Purpose: return the resolved log directory, which is the persistent storage.
+   An unresolved directory is an empty string. This read does not create it. */
+const char *Logger::logger_persistence_storage(void)
+{
+    return logger_folder;
 }
 
 // ──────────────────────────────────────────────
@@ -645,8 +686,6 @@ Logger::Logger(const char *logname, const char *logdir, const char *basedir, boo
       logger_old_log_path(),
       logger_clock(NULL)
 {
-    const char *debug_env;
-
     /* An empty name builds an unbound object. The retain driver uses that
        object for logger_maintain_directory. This path does not store
        logger_active, does not create a directory, and does not write. */
@@ -671,8 +710,7 @@ Logger::Logger(const char *logname, const char *logdir, const char *basedir, boo
     logger_log_path[0] = '\0';
     logger_old_log_path[0] = '\0';
 
-    debug_env = getenv("DEBUG");
-    debug_env_enabled = g_parsed.debug || (debug_env != NULL && debug_env[0] != '\0');
+    debug_env_enabled = g_parsed.debug || logger_env_debug_token();
     logger_json_mode = g_parsed.json;
     if (!logger_json_mode && env_is_one("JSON")) {
         logger_json_mode = true;
@@ -1415,9 +1453,10 @@ void Logger::logger_log(LoggerOutputLevel level, const char *component, const ch
         return;
     }
 
-    /* Stdout human lines stay hidden unless --verbose or debug mode is set.
-       Neither one shows them while quiet or JSON is on. ERROR, CRITICAL, and
-       FATAL stay on stderr. The dated file still receives the human line. */
+    /* Quiet hides every human console line, including ERROR, CRITICAL, and
+       FATAL. The dated file still receives the line. Stdout lines stay hidden
+       until --verbose or debug mode, and neither one shows them while quiet.
+       JSON replaces the human line. */
     // Make a copy because g_strdup_vprintf / g_vasprintf may consume the list
     va_list ap_copy;
     va_copy(ap_copy, ap);
@@ -1434,8 +1473,8 @@ void Logger::logger_log(LoggerOutputLevel level, const char *component, const ch
                 logger_level_name(level),
                 escaped);
         g_free(escaped);
-    } else if (logger_stderr_level(level) ||
-               (!logger_get_quiet() && (logger_verbose || debug_env_enabled))) {
+    } else if (!logger_get_quiet() &&
+               (logger_stderr_level(level) || logger_verbose || debug_env_enabled)) {
         logger_emit_chronicle(level, part, message);
     }
 
@@ -1508,7 +1547,7 @@ void Logger::logger_warn(const char *component, const char *format, ...)
 // ──────────────────────────────────────────────
 //
 // Purpose:
-//   Error messages (always shown, even in --quiet mode)
+//   Error messages. Quiet hides the human console line. The dated file still receives it.
 //
 // Parameters:
 //   Input:
@@ -1521,7 +1560,7 @@ void Logger::logger_warn(const char *component, const char *format, ...)
 //   - Headers required: logger.h
 //
 // Protection:
-//   Critical path - must never be suppressed
+//   The dated file still receives the line. Quiet hides the human console line.
 //
 // Last updated: Full CIAO expansion (2026-05-08)
 // ──────────────────────────────────────────────
@@ -1567,7 +1606,7 @@ void Logger::logger_fatal(const char *component, const char *format, ...)
 //   - Headers required: logger.h
 //
 // Rules:
-//   - Only active when DEBUG=1 (or any non-empty value) in environment.
+//   - Only active for --debug, or for DEBUG or debug set to show, true, or 1.
 //   - Quiet hides the human debug line.
 //   - JSON mode still emits that call as one JSON object.
 //
@@ -1622,7 +1661,7 @@ void Logger::logger_print_help(void)
     g_print("  One of test, list, or show. A second command stops.\n\n");
     g_print("Options:\n");
     g_print("  --verbose            Show stdout log lines. Ignored with --quiet or --json\n");
-    g_print("  --quiet              Suppress non-error messages. --verbose does not override this\n");
+    g_print("  --quiet              Hide every human console line. The log file still receives it\n");
     g_print("  --json               JSON mode. Each verb prints one JSON object. --verbose does not add a human line\n");
     g_print("  --debug              Enable debug events and show stdout log lines. Hidden with --quiet or --json\n");
     g_print("  --prefix <dir>       Test switch for root or sudo. Log directory <dir>/var/%s/log\n", PROJECT_NAME);
@@ -1632,7 +1671,7 @@ void Logger::logger_print_help(void)
     g_print("  root or sudo         Base /var/%s and log directory /var/%s/log\n", PROJECT_NAME, PROJECT_NAME);
     g_print("  other                Base $HOME/.app/%s and log directory $HOME/.app/%s/log\n\n", PROJECT_NAME, PROJECT_NAME);
     g_print("Environment Variables:\n");
-    g_print("  DEBUG=1              Enable logger_debug() output\n");
+    g_print("  DEBUG=1              Enable debug. Also show, true, or 1. The name debug matches too\n");
     g_print("  QUIET=1              Same as --quiet\n");
     g_print("  JSON=1               Same as --json\n");
     g_print("  HOME                 Other-user base on a normal run. A test purpose command ignores it\n\n");
@@ -1707,7 +1746,7 @@ void Logger::logger_print_about(void)
     char preferred[512];
     char fallback1[512];
     char used[512];
-    char persistence[512];
+    char persistence[4096];
     char global_path[512];
     char local_path[512];
     char global_value[32];
@@ -1767,12 +1806,10 @@ void Logger::logger_print_about(void)
     if (root) {
         g_snprintf(preferred, sizeof(preferred), "/var/cache/%s", PROJECT_NAME);
         g_strlcpy(used, preferred, sizeof(used));
-        g_snprintf(persistence, sizeof(persistence), "/var/%s", PROJECT_NAME);
     } else {
         g_snprintf(preferred, sizeof(preferred), "/dev/shm/cache/cache-%s", PROJECT_NAME);
         if (home != NULL) {
             g_snprintf(fallback1, sizeof(fallback1), "%s/.cache/cache-%s", home, PROJECT_NAME);
-            g_snprintf(persistence, sizeof(persistence), "%s/.app/%s", home, PROJECT_NAME);
         }
         if (stat("/dev/shm", &st) == 0 && S_ISDIR(st.st_mode)) {
             g_strlcpy(used, preferred, sizeof(used));
@@ -1780,6 +1817,7 @@ void Logger::logger_print_about(void)
             g_strlcpy(used, fallback1, sizeof(used));
         }
     }
+    logger_about_copy(persistence, sizeof(persistence), logger_persistence_storage());
 
     inside_docker = 0;
     docker = fopen("/.dockerenv", "r");
@@ -1965,6 +2003,15 @@ extern "C" bool logger_get_debug(void)
         exit(1);
     }
     return Logger::logger_active->logger_get_debug();
+}
+
+extern "C" const char *logger_persistence_storage(void)
+{
+    if (Logger::logger_active == NULL) {
+        g_printerr("Logger is constructed at the call site\n");
+        exit(1);
+    }
+    return Logger::logger_active->logger_persistence_storage();
 }
 
 extern "C" void logger_info(const char *component, const char *format, ...)

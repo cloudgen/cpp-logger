@@ -51,7 +51,7 @@ This workspace is a software product people install and run: a console program. 
 
 - Display name: `cpp-logger` (`PROJECT_NAME` in `src/main/cpp/project.h`).
 - Runtime id: `cpp-logger` (`PROJECT_ID`).
-- Version macros in `project.h` are the runtime version `1.1.2`. `project.ini` `VERSION`, `meson.build`, and the README Version badge use the same string.
+- Version macros in `project.h` are the runtime version `1.1.3`. `project.ini` `VERSION`, `meson.build`, and the README Version badge use the same string.
 - This folder is not a git repository. No origin URL is recorded.
 - Host packages and link modules are owned by `requirement-cpp-dependencies.md`.
 

@@ -43,7 +43,7 @@ The host check is the quality-assurance record of this run: which compiler built
 
 ### 2.1 Identity
 
-4. The first five lines are, in order: `{APP_NAME} {version}`, `{PROJECT_DESCRIPTION}`, `Domain: No database. No configuration file.`, `Runtime tools: none`, `Entry points: {APP_NAME}`. `{APP_NAME}` is `PROJECT_NAME` in `src/main/cpp/project.h` (`cpp-logger`). `{version}` is `VERSION_MAJOR`, `VERSION_MINOR`, and `VERSION_PATCH` from that header, printed as `1.1.2`. `{PROJECT_DESCRIPTION}` is the `PROJECT_DESCRIPTION` macro. This file owns the domain sentence. The version digits stay in `project.h`.
+4. The first five lines are, in order: `{APP_NAME} {version}`, `{PROJECT_DESCRIPTION}`, `Domain: No database. No configuration file.`, `Runtime tools: none`, `Entry points: {APP_NAME}`. `{APP_NAME}` is `PROJECT_NAME` in `src/main/cpp/project.h` (`cpp-logger`). `{version}` is `VERSION_MAJOR`, `VERSION_MINOR`, and `VERSION_PATCH` from that header, printed as `1.1.3`. `{PROJECT_DESCRIPTION}` is the `PROJECT_DESCRIPTION` macro. This file owns the domain sentence. The version digits stay in `project.h`.
 5. The runtime-tools line stays `none`. The page does not name FFmpeg, GTK, or WebKit.
 
 ### 2.2 Host check
@@ -71,8 +71,9 @@ The host check is the quality-assurance record of this run: which compiler built
 | `TTY / Interactive` | `yes` when stdout is a terminal, otherwise `no` |
 
 9. **Cache and persistence.** These are the directories in `requirement-cpp-logger-folder.md`. The page reads them. It does not create them. Effective user id 0 is root or sudo. Every other user is the other environment.
-    - **Root or sudo.** Preferred and used are `/var/cache/cpp-logger`. Persistence is `/var/cpp-logger`. The 1st fallback is empty.
-    - **Every other user.** Preferred is `/dev/shm/cache/cache-cpp-logger`. The 1st fallback is `$HOME/.cache/cache-cpp-logger` when `HOME` is set and non-empty, otherwise empty. Used is the preferred path when `/dev/shm` is a directory, otherwise the 1st fallback. Persistence is `$HOME/.app/cpp-logger` when `HOME` is set and non-empty, otherwise empty.
+    - **Root or sudo.** Preferred and used are `/var/cache/cpp-logger`. Persistence is the log directory `/var/cpp-logger/log` when that directory is the one `logger_persistence_storage()` returns. The 1st fallback is empty.
+    - **Every other user.** Preferred is `/dev/shm/cache/cache-cpp-logger`. The 1st fallback is `$HOME/.cache/cache-cpp-logger` when `HOME` is set and non-empty, otherwise empty. Used is the preferred path when `/dev/shm` is a directory, otherwise the 1st fallback. Persistence is the log directory `$HOME/.app/cpp-logger/log` when `HOME` is set and non-empty and no earlier base was chosen. When `HOME` is missing or empty, and conda, pyenv, and `VIRTUAL_ENV` are unset, persistence is empty.
+    - **Resolved log directory.** `logger_persistence_storage()` returns the log directory from `requirement-cpp-logger-folder.md`, or an empty string when that directory is unresolved. An explicit log directory is that path. A conda prefix, a pyenv virtualenv, or `VIRTUAL_ENV` yields `<that-prefix>/.app/cpp-logger/log`. The page prints that return. It does not print the base directory without `/log`, and it does not print a cache path in this field. `about` does not apply `--home` or `--prefix`.
     - **2nd fallback.** Empty on both environments. The leaf has no username and no process id.
 10. The page does not print `Python`, `C Library`, `Python Executable`, `python2 location`, `python3 location`, `conda location`, `pyenv location`, `Cython String`, or `Binary Type`. It does not spawn `python2`, `python3`, `conda`, `pyenv`, `g++`, or `id`. It does not print `You are using the GLOBAL INSTALLED version`, `You are using the LOCAL INSTALLED version`, or `You are using an UNINSTALLED version`. It does not print a Repository row or an Install channel row.
 
@@ -105,7 +106,7 @@ HalloTui prints a star box and classifies the path with three install-box senten
 Identity block this file owns:
 
 ```text
-cpp-logger 1.1.2
+cpp-logger 1.1.3
 Console logger. Lines follow ChronicleLogger.
 Domain: No database. No configuration file.
 Runtime tools: none
@@ -133,7 +134,7 @@ On Termux, Git Bash, Windows cmd, or the same class, the person runs `cpp-logger
 
 | TP-ID | Pass |
 |-------|------|
-| TP-CPP-ABOUT | One binary. `about` prints the five identity lines, a blank line, the host-check labels in §2.2, a blank line, and the install-location lines in §2.3. The compiler line starts with `g++`. The standard line is `C++17`. The stamp ends `.000000` and two spaces sit before `[CHECK SYSTEM]:`. With `HOME` and `PREFIX` removed, the 1st fallback and persistence lines stay empty, the local probe is `Local install: not found`, and the global probe uses `/usr/local/bin/cpp-logger`. `Running from` is the running binary. The page contains no Python, conda, pyenv, star-box sentence, single installed banner, Repository row, or Install channel row. `--quiet about` still prints the host check and the install location. `--json about`, `about --json`, and `JSON=1 about` each print one JSON object and do not print the human page. The run creates no log directory and no cache directory |
+| TP-CPP-ABOUT | One binary. `about` prints the five identity lines, a blank line, the host-check labels in §2.2, a blank line, and the install-location lines in §2.3. The compiler line starts with `g++`. The standard line is `C++17`. The stamp ends `.000000` and two spaces sit before `[CHECK SYSTEM]:`. With `HOME` and `PREFIX` removed, the 1st fallback and persistence lines stay empty, the local probe is `Local install: not found`, and the global probe uses `/usr/local/bin/cpp-logger`. `Running from` is the running binary. With `VIRTUAL_ENV` set to `/tmp/cpp-logger-about-venv` and `HOME` removed, persistence is `/tmp/cpp-logger-about-venv/.app/cpp-logger/log` on the human page and in `persistence_storage`, and that directory is not created. The page contains no Python, conda, pyenv, star-box sentence, single installed banner, Repository row, or Install channel row. `--quiet about` still prints the host check and the install location. `--json about`, `about --json`, and `JSON=1 about` each print one JSON object and do not print the human page. The run creates no log directory and no cache directory |
 
 ### Design-time verification
 

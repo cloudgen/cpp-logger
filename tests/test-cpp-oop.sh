@@ -84,6 +84,7 @@ done
 
 for name in \
     logger_is_test_verb logger_set_quiet logger_get_quiet logger_get_debug \
+    logger_persistence_storage \
     logger_log logger_info logger_warn logger_error logger_fatal logger_debug \
     logger_maintain_directory logger_print_help logger_print_about \
     logger_json_escape logger_command_name logger_die logger_join_base \
@@ -101,7 +102,7 @@ done
 
 for name in \
     logger_log logger_is_test_verb logger_set_quiet logger_get_quiet \
-    logger_get_debug logger_print_help logger_print_about \
+    logger_get_debug logger_persistence_storage logger_print_help logger_print_about \
     logger_maintain_directory
 do
     need TP-CPP-OOP "$body" "logger_active->${name}"
@@ -153,7 +154,11 @@ empty_dir=/tmp/cpp-logger-format-empty
 lines_dir=/tmp/cpp-logger-format-log
 quiet_dir=/tmp/cpp-logger-format-quiet
 fail_dir=/tmp/cpp-logger-format-fail
-rm -rf "${empty_dir}" "${lines_dir}" "${quiet_dir}" "${fail_dir}"
+errors_dir=/tmp/cpp-logger-format-errors
+jsonerr_dir=/tmp/cpp-logger-format-jsonerr
+token_dir=/tmp/cpp-logger-format-token
+rm -rf "${empty_dir}" "${lines_dir}" "${quiet_dir}" "${fail_dir}" \
+    "${errors_dir}" "${jsonerr_dir}" "${token_dir}"
 
 if ! empty_out=$("${work}/format-driver" empty 2>"${work}/empty.err"); then
     echo "[FAIL] TP-CPP-OOP empty name exited non-zero"
@@ -214,6 +219,99 @@ if [ ! -d "${quiet_dir}" ]; then
     fail=1
 fi
 
+if ! errors_out=$("${work}/format-driver" errors 2>"${work}/errors.err"); then
+    echo "[FAIL] TP-CPP-OOP quiet errors exited non-zero"
+    fail=1
+fi
+if printf '%s\n' "${errors_out}" | grep -F '] @main :]' >/dev/null; then
+    echo "[FAIL] TP-CPP-OOP quiet showed a human error line"
+    fail=1
+fi
+if grep -E 'hidden (error|critical|fatal)' "${work}/errors.err" >/dev/null; then
+    echo "[FAIL] TP-CPP-OOP quiet left an error line on stderr"
+    fail=1
+fi
+if ! printf '%s\n' "${errors_out}" | grep -F -x "storage:${errors_dir}" >/dev/null; then
+    echo "[FAIL] TP-CPP-OOP persistence storage is not the log directory"
+    fail=1
+fi
+errors_file="${errors_dir}/cpp-logger-$(date +%Y%m%d).log"
+for hidden in 'hidden error' 'hidden critical' 'hidden fatal'; do
+    if ! grep -F "${hidden}" "${errors_file}" >/dev/null; then
+        echo "[FAIL] TP-CPP-OOP quiet dropped ${hidden} from the file"
+        fail=1
+    fi
+done
+
+if ! jsonerr_out=$(env -u DEBUG -u debug JSON=1 "${work}/format-driver" jsonerr 2>"${work}/jsonerr.err"); then
+    echo "[FAIL] TP-CPP-OOP JSON error exited non-zero"
+    fail=1
+fi
+if ! printf '%s\n' "${jsonerr_out}" | grep -F '"level":"ERROR"' >/dev/null; then
+    echo "[FAIL] TP-CPP-OOP JSON error object missing"
+    fail=1
+fi
+if ! printf '%s\n' "${jsonerr_out}" | grep -F '"message":"json error"' >/dev/null; then
+    echo "[FAIL] TP-CPP-OOP JSON error message missing"
+    fail=1
+fi
+if printf '%s\n' "${jsonerr_out}" | grep -F '] @main :]' >/dev/null; then
+    echo "[FAIL] TP-CPP-OOP JSON error printed a human line"
+    fail=1
+fi
+if grep -F 'json error' "${work}/jsonerr.err" >/dev/null; then
+    echo "[FAIL] TP-CPP-OOP JSON error printed on stderr"
+    fail=1
+fi
+jsonerr_file="${jsonerr_dir}/cpp-logger-$(date +%Y%m%d).log"
+if ! grep -F '[ERROR] @main :] json error' "${jsonerr_file}" >/dev/null; then
+    echo "[FAIL] TP-CPP-OOP JSON error missing from the file"
+    fail=1
+fi
+
+token_check() {
+    label=$1
+    expect=$2
+    shift 2
+    rm -rf "${token_dir}"
+    if ! token_out=$("$@" "${work}/format-driver" token 2>"${work}/token.err"); then
+        echo "[FAIL] TP-CPP-OOP debug token ${label} exited non-zero"
+        fail=1
+        return
+    fi
+    if ! printf '%s\n' "${token_out}" | grep -F -x "${expect}" >/dev/null; then
+        echo "[FAIL] TP-CPP-OOP debug token ${label} expected ${expect}"
+        fail=1
+    fi
+    token_file="${token_dir}/cpp-logger-$(date +%Y%m%d).log"
+    if [ "${expect}" = "debug-on" ]; then
+        if ! grep -F '] @main :] token line' "${token_file}" >/dev/null; then
+            echo "[FAIL] TP-CPP-OOP debug token ${label} missing from the file"
+            fail=1
+        fi
+        if ! printf '%s\n' "${token_out}" | grep -F '] @main :] token line' >/dev/null; then
+            echo "[FAIL] TP-CPP-OOP debug token ${label} hid the debug line"
+            fail=1
+        fi
+    else
+        if grep -F 'token line' "${token_file}" >/dev/null; then
+            echo "[FAIL] TP-CPP-OOP debug token ${label} wrote a debug line"
+            fail=1
+        fi
+        if printf '%s\n' "${token_out}" | grep -F '] @main :]' >/dev/null; then
+            echo "[FAIL] TP-CPP-OOP debug token ${label} printed a human line"
+            fail=1
+        fi
+    fi
+}
+
+token_check off debug-off env -u DEBUG -u debug
+token_check yes debug-off env -u DEBUG -u debug DEBUG=yes
+token_check one debug-on env -u DEBUG -u debug DEBUG=1
+token_check show debug-on env -u DEBUG -u debug DEBUG=show
+token_check true debug-on env -u DEBUG -u debug DEBUG=TRUE
+token_check low debug-on env -u DEBUG -u debug debug=1
+
 if ! "${work}/format-driver" fail >/dev/null 2>"${work}/fail.err"; then
     echo "[FAIL] TP-CPP-OOP clock failure exited non-zero"
     fail=1
@@ -227,7 +325,8 @@ elif ! grep -F '[1970-01-01 00:00:00] pid:' "${fail_file}" >/dev/null || ! grep 
     fail=1
 fi
 
-rm -rf "${work}" "${absent}" "${empty_dir}" "${lines_dir}" "${quiet_dir}" "${fail_dir}"
+rm -rf "${work}" "${absent}" "${empty_dir}" "${lines_dir}" "${quiet_dir}" "${fail_dir}" \
+    "${errors_dir}" "${jsonerr_dir}" "${token_dir}"
 
 if [ "$fail" -ne 0 ]; then
     exit 1

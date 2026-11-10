@@ -13,7 +13,7 @@ We take security seriously. This document outlines how to report security vulner
 
 ## Supported Versions
 
-- The latest release in the `main` branch (version **1.1.2**) is actively supported.
+- The latest release in the `main` branch (version **1.1.3**) is actively supported.
 - Older versions (below 1.0) are **not supported** for security updates.
 
 ---

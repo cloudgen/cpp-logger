@@ -101,9 +101,9 @@ The script is `tests/test-logger-folder.sh`. The filled checklist is `2026-10-03
 This check is `tests/test-run-boundary.sh`. The filled checklist is `2026-11-09-checklist-run-boundary.md`. It uses the literal directory `/tmp` only. A normal run is started with `HOME` and `PREFIX` removed, so it does not write the login log file. Cleanup deletes `/tmp/.app/cpp-logger`, `/tmp/var/cpp-logger`, those parents when empty, and `/tmp/cpp-logger-boundary-work`.
 
 1. Compile one binary the same way as §2.1. The binary is `/tmp/cpp-logger-boundary-work/cpp-logger`.
-2. `about` exits 0 and prints `cpp-logger 1.1.2` and `No database. No configuration file.`. `help` prints `about`. Neither command creates `/tmp/.app/cpp-logger`.
-3. A normal run with no flags prints no human log line. `--verbose` prints `Starting cpp-logger 1.1.2` and `Finished cpp-logger 1.1.2` and does not print `component main start`.
-4. `--debug` prints `switch --debug`, `component main start`, `component main end`, `Starting cpp-logger 1.1.2`, and `Finished cpp-logger 1.1.2`. It does not print `switch --quiet`. `--debug --quiet` prints no human log line. `--debug --json` prints a JSON object whose message is `switch --debug` and does not print the human line.
+2. `about` exits 0 and prints `cpp-logger 1.1.3` and `No database. No configuration file.`. `help` prints `about`. Neither command creates `/tmp/.app/cpp-logger`.
+3. A normal run with no flags prints no human log line. `--verbose` prints `Starting cpp-logger 1.1.3` and `Finished cpp-logger 1.1.3` and does not print `component main start`. `DEBUG=yes` prints no human log line. `DEBUG=1`, `DEBUG=show`, `DEBUG=TRUE`, and `debug=1` each print `component main start` and do not print `switch --debug`.
+4. `--debug` prints `switch --debug`, `component main start`, `component main end`, `Starting cpp-logger 1.1.3`, and `Finished cpp-logger 1.1.3`. It does not print `switch --quiet`. `--debug --quiet` prints no human log line. `--debug --json` prints a JSON object whose message is `switch --debug` and does not print the human line.
 5. `test --home /tmp --log-datestamp 20261003 --debug --quiet` stores `switch --debug`, `switch --quiet`, `switch --home /tmp`, `switch --log-datestamp 20261003`, `component main start`, `component main end`, and `test log`. It does not store `Starting cpp-logger`.
 
 ### 2.4 Ant, Gradle, Meson, and build.sh
@@ -123,13 +123,13 @@ This check is `tests/test-cpp-builds.sh`. The filled checklist is `2026-11-10-ch
 This check is `tests/test-cpp-about.sh`. The filled checklist is `2026-11-10-checklist-cpp-about.md`. It uses the literal directory `/tmp` only. The child is started with `HOME` and `PREFIX` removed. The script does not read, assign, or delete `HOME`. Cleanup deletes `/tmp/.app/cpp-logger`, `/tmp/.app` when that directory is empty, and `/tmp/cpp-logger-about-work`.
 
 1. Compile one binary the same way as §2.1. The binary is `/tmp/cpp-logger-about-work/cpp-logger`. The check runs as a normal user.
-2. `about` exits 0. The page starts with `cpp-logger 1.1.2`, the description, `Domain: No database. No configuration file.`, `Runtime tools: none`, and `Entry points: cpp-logger`. A blank line follows. The host check names `g++`, `C++17`, the `uname` system and machine, and the running binary. The stamp ends `.000000`. Two spaces sit before `[CHECK SYSTEM]:`. A blank line follows the host check. The next block is `Install location`.
+2. `about` exits 0. The page starts with `cpp-logger 1.1.3`, the description, `Domain: No database. No configuration file.`, `Runtime tools: none`, and `Entry points: cpp-logger`. A blank line follows. The host check names `g++`, `C++17`, the `uname` system and machine, and the running binary. The stamp ends `.000000`. Two spaces sit before `[CHECK SYSTEM]:`. A blank line follows the host check. The next block is `Install location`. With `HOME` removed, persistence is empty. With `VIRTUAL_ENV` set to `/tmp/cpp-logger-about-venv` and `HOME` removed, persistence is `/tmp/cpp-logger-about-venv/.app/cpp-logger/log` and that directory is not created.
 3. With `HOME` removed, `Cache folder (1st fallback)`, `Cache folder (2nd fallback)`, and `Persistence storage` stay on the page and their values are empty. The preferred cache line is `/dev/shm/cache/cache-cpp-logger`. The local probe is `Local install: not found`. With `PREFIX` removed, the global probe uses `/usr/local/bin/cpp-logger` and the value is this build's version when that file is a regular executable, otherwise `not found`. `Running from` is the running binary. The run does not create the preferred cache directory and does not create `/tmp/.app/cpp-logger`.
 4. The page does not contain Python, conda, pyenv, a star-box install sentence, `properly installed`, a Repository row, or an Install channel row. `--quiet about` still prints the host check and `Install location`. `--json about`, `about --json`, and `JSON=1` each print one JSON object and do not print the host check or `Install location`.
 
 ### 2.6 Logger portability
 
-This check is `tests/test-cpp-logger-portable.sh`. It reads `PRJ` from `project.ini` and `PROJECT_NAME` from `src/main/cpp/project.h` and requires those strings to match. `VERSION` matches the triple from `VERSION_MAJOR`, `VERSION_MINOR`, and `VERSION_PATCH`. `LOG_COMPONENT` is `main`. Formats in `src/main/cpp/logger.cpp` do not paste `/var/<name>`, `.app/<name>`, or `cache-<name>`. `help` prints the name. `test --home /tmp --log-datestamp 20261003` writes `/tmp/.app/<name>/log/<name>-20261003.log`. The check does not build a second project. `TP-CPP-LOGGER-PORTABLE` is pass. The suite exited 0 on 2026-11-10 and is run again for release 1.1.2.
+This check is `tests/test-cpp-logger-portable.sh`. It reads `PRJ` from `project.ini` and `PROJECT_NAME` from `src/main/cpp/project.h` and requires those strings to match. `VERSION` matches the triple from `VERSION_MAJOR`, `VERSION_MINOR`, and `VERSION_PATCH`. `LOG_COMPONENT` is `main`. Formats in `src/main/cpp/logger.cpp` do not paste `/var/<name>`, `.app/<name>`, or `cache-<name>`. `help` prints the name. `test --home /tmp --log-datestamp 20261003` writes `/tmp/.app/<name>/log/<name>-20261003.log`. The check does not build a second project. `TP-CPP-LOGGER-PORTABLE` is pass. The suite exited 0 on 2026-11-10 and is run again for release 1.1.3.
 
 ### 2.7 Log retention
 
@@ -144,8 +144,9 @@ This check is `tests/test-cpp-oop.sh`. It reads `src/main/cpp/logger.h`, `src/ma
 3. `main.cpp` parses `argc` and `argv`, then constructs `Logger` with the five arguments in `requirement-cpp-logger.md` §2.0, and does not declare a second type. The call is `Logger logger(PROJECT_NAME, logdir, basedir, quiet, NULL);`. The 1.1.1 call `Logger logger(argc, argv);` is not this check.
 4. A function whose only job is to return a `Logger` is absent.
 5. The `logger_*` C names forward to that object. Unbound `logger_maintain_directory` uses a short-lived object and does not print.
+6. Quiet construction of an error, a critical line, and a fatal line prints no human console line. The dated file still contains those three lines. The same driver prints `storage:` plus the explicit log directory. `JSON=1` prints one error object, prints no human line, and still writes the human line to the file. `DEBUG=yes` leaves debug off. `DEBUG=1`, `DEBUG=show`, `DEBUG=TRUE`, and `debug=1` turn debug on.
 
-On 2026-11-10 the script printed `PASS cpp oop` and exited 0 for `Logger logger(argc, argv);`. That run is not this pass. On 2026-11-11 the same script proves the five-argument constructor. TP-CPP-OOP is pass for that constructor.
+On 2026-11-10 the script printed `PASS cpp oop` and exited 0 for `Logger logger(argc, argv);`. That run is not this pass. On 2026-11-11 the same script printed `PASS cpp oop` and exited 0 for the five-argument constructor, quiet errors, the log-directory return, and the debug tokens. TP-CPP-OOP is pass.
 
 ## 3. Protection rule
 
