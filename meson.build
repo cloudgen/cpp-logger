@@ -1,9 +1,9 @@
 # meson.build — second build.
 # Compiles the same sources as ./build.sh.
-# project() version matches the runtime macros in src/main/cpp/project.h (1.0.8).
+# project() version matches the runtime macros in src/main/cpp/project.h (1.1.0).
 
 project('cpp-logger', 'cpp',
-    version: '1.0.8',
+    version: '1.1.0',
     license: 'MIT',
     default_options: [
         'warning_level=3',

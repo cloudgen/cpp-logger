@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <project name="cpp-logger" default="build" basedir=".">
-    <property name="version" value="1.0.8"/>
+    <property name="version" value="1.1.0"/>
     <!-- Define project properties -->
     <property file="project.ini"/>
     <!-- Define project properties with defaults -->    
@@ -16,6 +16,45 @@
     <property name="project.sh" value="./project.sh"/>
     <property name="required.packages" value="build-essential pkg-config libglib2.0-dev"/>
     <property name="avoided.packages" value=""/>
+    <condition property="os.windows">
+        <os family="windows"/>
+    </condition>
+    <condition property="os.mac">
+        <os family="mac"/>
+    </condition>
+    <condition property="os.linux">
+        <and>
+            <os family="unix"/>
+            <not><os family="mac"/></not>
+        </and>
+    </condition>
+    <condition property="os.skip.linux.compile">
+        <or>
+            <isset property="os.windows"/>
+            <isset property="os.mac"/>
+        </or>
+    </condition>
+
+    <!--
+      Purpose: record glibc, uclibc, or musl on a Linux target host.
+      Protection Rule: do not reject uClibc or musl. Do not run this probe on Windows or macOS.
+    -->
+    <target name="detect-libc" if="os.linux" description="Record the Linux libc: glibc, uclibc, or musl">
+        <exec executable="sh" failonerror="false" outputproperty="libc.name">
+            <arg value="-c"/>
+            <arg value="if ldd --version 2&gt;&amp;1 | grep -qi uclibc; then echo uclibc; elif ldd --version 2&gt;&amp;1 | grep -qi musl; then echo musl; elif ldd --version 2&gt;&amp;1 | grep -qi glibc; then echo glibc; else echo glibc; fi"/>
+        </exec>
+        <echo message="Target host: linux/${libc.name}"/>
+    </target>
+
+    <target name="build-windows" if="os.windows" description="Windows target host. A Linux host skips this target">
+        <echo message="Windows target host. Debug binary: ${build.debug.dir}/${app.name}"/>
+    </target>
+
+    <target name="build-macos" if="os.mac" description="macOS target host. A Linux host skips this target">
+        <echo message="macOS target host. Debug binary: ${build.debug.dir}/${app.name}"/>
+    </target>
+
     <macrodef name="replace-property" taskname="@{taskname}">
         <attribute name="src" />
         <attribute name="dest" default="" />
@@ -209,8 +248,46 @@ install
         <available file="${src.cpp.dir}/main.cpp" property="cpp.source.exists"/>
     </target>
 
+    <!-- A missing src/main/c contributes no files. Do not create that directory. -->
+    <target name="check-c-dir">
+        <available file="${src.c.dir}" type="dir" property="c.dir.exists"/>
+    </target>
+
+    <target name="check-cpp-dir">
+        <available file="${src.cpp.dir}" type="dir" property="cpp.dir.exists"/>
+    </target>
+
+    <target name="report-c-dir-present" depends="check-c-dir" if="c.dir.exists">
+        <echo message="Check ${src.c.dir}: present"/>
+    </target>
+
+    <target name="report-c-dir-absent" depends="check-c-dir" unless="c.dir.exists">
+        <echo message="Check ${src.c.dir}: absent. Contributes no files."/>
+    </target>
+
+    <target name="report-cpp-dir-present" depends="check-cpp-dir" if="cpp.dir.exists">
+        <echo message="Check ${src.cpp.dir}: present"/>
+    </target>
+
+    <target name="report-cpp-dir-absent" depends="check-cpp-dir" unless="cpp.dir.exists">
+        <echo message="Check ${src.cpp.dir}: absent. Contributes no files."/>
+    </target>
+
+    <target name="scan-cpp-in-c" depends="check-c-dir" if="c.dir.exists">
+        <fileset id="cpp.in.c.lists" dir="${src.c.dir}" includes="**/*.cpp"/>
+        <property name="tmp-cpp-in-c" refid="cpp.in.c.lists"/>
+        <condition property="cpp.in.c.exists">
+            <and>
+                <isset property="tmp-cpp-in-c"/>
+                <not>
+                    <equals arg1="${tmp-cpp-in-c}" arg2=""/>
+                </not>
+            </and>
+        </condition>
+    </target>
+
     <!-- Target to compile the source code -->
-    <target name="compile" depends="install,check-c-source,check-cpp-source,list-sources">
+    <target name="compile" unless="os.skip.linux.compile" depends="detect-libc,check-c-source,check-cpp-source,report-c-dir-present,report-c-dir-absent,report-cpp-dir-present,report-cpp-dir-absent,list-sources,scan-cpp-in-c">
         <condition property="compiler" value="gcc">
             <and>
                 <isset property="c.source.exists"/>
@@ -234,14 +311,6 @@ install
         </condition>
 
         <fail message="No valid source files found for compilation!" unless="compiler"/>
-
-        <fileset id="cpp.in.c.lists" dir="${src.c.dir}" includes="**/*.cpp"/>
-        <property name="tmp-cpp-in-c" refid="cpp.in.c.lists"/>
-        <condition property="cpp.in.c.exists">
-            <not>
-                <equals arg1="${tmp-cpp-in-c}" arg2=""/>
-            </not>
-        </condition>
 
         <exec executable="pkg-config"
             failonerror="true"
@@ -346,7 +415,7 @@ install
     </target>
 
     <!-- Target to build the application -->
-    <target name="build" depends="clean, move">
+    <target name="build" depends="detect-libc,clean,move,build-windows,build-macos">
         <echo message="Build completed. You can run the application with the command: ${build.debug.dir}/${app.name}"/>
     </target>
 

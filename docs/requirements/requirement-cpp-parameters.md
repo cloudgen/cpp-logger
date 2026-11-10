@@ -1,6 +1,6 @@
 **file**: docs/requirements/requirement-cpp-parameters.md
 **Status**: Active
-**Updated**: 2026-11-09
+**Updated**: 2026-11-10
 **Philosophy**: CIAO v2.10.2 / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
 
 ## 1. Purpose
@@ -9,7 +9,7 @@ This file owns every command-line flag and environment variable the binary accep
 
 ### 1.1 Human-facing
 
-**In one sentence:** You pass flags or environment variables, and `help` prints the same set. `about` prints the name and version.
+**In one sentence:** You pass flags or environment variables, and `help` prints the same set. `about` prints which program this is, what this computer is, and where it is running from.
 
 | Box | Meaning | Example |
 |-----|---------|---------|
@@ -29,7 +29,7 @@ This file owns every command-line flag and environment variable the binary accep
 | You do… | What it means | What you type |
 |---------|---------------|---------------|
 | Read the list | Help shows every row below | `cpp-logger help` |
-| Read the identity | About prints the name, version, and description, then stops | `cpp-logger about` |
+| Read the identity | About prints the three live facts, then stops | `cpp-logger about` |
 
 ## 2. Core rules
 
@@ -39,14 +39,14 @@ On a normal run the effective user selects cpp-base-path. `test`, `list`, and `s
 
 | Parameter | Meaning |
 |-----------|---------|
-| `help` | Print help and stop. It does not append a log line |
-| `about` | Print `cpp-logger`, the runtime version, the description, `No database. No configuration file.`, and stop. It does not append a log line |
+| `help` | Print help and stop. `--json` or `JSON=1` prints one object and no usage text. It does not append a log line |
+| `about` | Print the page in `requirement-cpp-about.md` and stop. `--json` or `JSON=1` prints one object and no page. It does not append a log line |
 | `test` | cpp-test-purpose-command. Requires `--prefix` or `--home`, and `--log-datestamp`. Writes one `test log` line and stops |
-| `list` | cpp-test-purpose-command. Requires `--prefix` or `--home`. Prints regular `*.log` names in that log directory, one per line, sorted. Does not append a line |
-| `show` | cpp-test-purpose-command. Requires `--prefix` or `--home`, and `--log-datestamp`. Prints that dated file. A missing file exits 1 |
+| `list` | cpp-test-purpose-command. Requires `--prefix` or `--home`. Prints regular `*.log` names in that log directory, one per line, sorted. `--json` or `JSON=1` prints one object. Does not append a line |
+| `show` | cpp-test-purpose-command. Requires `--prefix` or `--home`, and `--log-datestamp`. Prints that dated file. `--json` or `JSON=1` prints one object. A missing file exits 1 |
 | `--verbose` | Display stdout log lines. It works only when the run is not quiet and not JSON (`requirement-cpp-output.md`) |
 | `--quiet` | Suppress non-error human lines. `--verbose` does not override this (`requirement-cpp-output.md`) |
-| `--json` | JSON mode (`requirement-cpp-json.md`). `--verbose` does not add a human line |
+| `--json` | JSON mode (`requirement-cpp-json.md`). Every verb prints JSON. `--verbose` does not add a human line |
 | `--debug` | cpp-test-purpose-switch, and the normal debug flag. Debug mode shows stdout log lines when the run is not quiet and not JSON (`requirement-cpp-output.md`) |
 | `--prefix <dir>` | cpp-test-purpose-switch for root or sudo. cpp-test-log-path is `<dir>/var/cpp-logger/log` |
 | `--home <dir>` | cpp-test-purpose-switch for every other user. cpp-test-log-path is `<dir>/.app/cpp-logger/log` |
@@ -63,7 +63,7 @@ There is no `--shutdown`, no `--bookmark`, no `--config`, and no `SHUTDOWN` or `
 
 One invocation accepts one of `test`, `list`, or `show`. A second one exits 1 with `one test purpose command`.
 
-Parsing happens in `logger_output_init()`.
+Parsing happens in `logger_output_init()`. `JSON=1` is read before the scan. `help` and `about` run after the scan, so `--json` after the verb is the same mode as `--json` before it.
 
 ### Sample code (this project)
 
@@ -125,6 +125,7 @@ Future editors must not add a flag in `logger.cpp` without adding the same flag 
 | cpp-test-purpose-switch | `--prefix`, `--home`, `--debug`, `--log-datestamp` |
 | `docs/requirements/requirement-cpp-tests.md` | The `test` verb |
 | `src/main/cpp/logger.cpp` | Parser and help text |
+| `docs/requirements/requirement-cpp-about.md` | The about page |
 
-**Last updated**: 2026-11-09
+**Last updated**: 2026-11-10
 **Owner**: Parameters

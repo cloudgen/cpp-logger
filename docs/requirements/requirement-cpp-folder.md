@@ -1,6 +1,6 @@
 **file**: docs/requirements/requirement-cpp-folder.md
 **Status**: Active
-**Updated**: 2026-10-03
+**Updated**: 2026-11-10
 **Philosophy**: CIAO v2.10.2 / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
 
 ## 1. Purpose
@@ -14,7 +14,7 @@ This file owns the ship-unit directory `src/main/cpp`. Coding style owns spellin
 | Box | Meaning | Example |
 |-----|---------|---------|
 | You / this login | The person adding a source file | You add a `.cpp` file under `src/main/cpp` |
-| The other role | `./build.sh` and Meson | They compile the translation units in that directory |
+| The other role | `./build.sh`, Ant, Gradle, and Meson | They compile the translation units in that directory |
 | Not this file | How a name is spelled, and what a log line looks like | `requirement-cpp-coding-style.md` and `requirement-cpp-logger.md` |
 
 | Includes | Excludes |
@@ -36,7 +36,7 @@ This file owns the ship-unit directory `src/main/cpp`. Coding style owns spellin
 2. A translation unit in that directory is `.cpp` unless this requirement names a `.c` file. This requirement names no `.c` file.
 3. A header named in §2.1 stays `.h`. Do not rename `logger.h` or `project.h` to `.hpp`.
 4. Shell scripts, Meson files, and Markdown do not go in this directory.
-5. `project.sh` sets `SRC_C` to `src/main/cpp`. `./build.sh` compiles the `.cpp` files there. `meson.build` lists the same translation units. A new translation unit is added to this file and to the Meson source list in the same change.
+5. `project.sh` sets `SRC_C` to `src/main/cpp`. `./build.sh`, `build.xml`, `build.gradle`, and `meson.build` compile the `.cpp` files there. `meson.build` lists the same translation units. A new translation unit is added to this file and to the Meson source list in the same change. An Ant-generated `project.sh` is `requirement-cpp-ant.md`. A Meson-generated `project.sh` is `requirement-cpp-meson.md`. Those generators do not replace this checked-in file and do not create `src/main/c`.
 6. A header and its translation unit stay paired. `project.h` holds identity macros only.
 7. cpp-log-path is not a source directory. For root or sudo it is `/var/cpp-logger/log`. For every other user it is `$HOME/.app/cpp-logger/log`. The directory is `requirement-cpp-logger-folder.md`. The dated file in it is `requirement-cpp-logger.md`. Do not move `main.cpp` or `logger.cpp` into that directory.
 
@@ -73,8 +73,13 @@ Future editors must not recreate `src/main/c`, add a second ship-unit source roo
 | `docs/requirements/requirement-cpp-logger-folder.md` | Log directory, not this source directory |
 | `docs/requirements/requirement-cpp-logger.md` | Dated log file inside that directory |
 | `build.sh` | Compiles this directory |
+| `build.xml` | Ant compile of this directory |
+| `build.gradle` | Gradle compile of this directory |
 | `meson.build` | Meson source list |
 | `project.sh` | `SRC_C=src/main/cpp` |
+| `docs/requirements/requirement-cpp-ant.md` | Ant compile of `.c` and `.cpp`, and the generated exports |
+| `docs/requirements/requirement-cpp-gradle.md` | Gradle compile of this directory |
+| `docs/requirements/requirement-cpp-meson.md` | Meson source list and the generated exports |
 
-**Last updated**: 2026-10-03
+**Last updated**: 2026-11-10
 **Owner**: C++ source folder

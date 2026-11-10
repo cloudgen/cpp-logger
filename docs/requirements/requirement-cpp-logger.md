@@ -1,6 +1,6 @@
 **file**: docs/requirements/requirement-cpp-logger.md
 **Status**: Active
-**Updated**: 2026-11-09
+**Updated**: 2026-11-10
 **Philosophy**: CIAO v2.10.2 / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
 
 ## 1. Purpose
@@ -92,7 +92,8 @@ The file is `cpp-logger-<YYYYMMDD>.log` inside cpp-log-path, or inside cpp-test-
 4. Each event that `logger_log` emits is appended to this file as the human line in §2.1. The console line is unchanged. The program creates the log directory when it appends. It does not use `mkstemp`. `list` and `show` do not append a line.
 5. When the log directory is unresolved, no file is created.
 6. `list` prints the basenames of regular files whose names end in `.log`, one per line, in sorted order. A directory or other non-regular name is omitted. A missing directory prints no names and exits 0. It does not create the directory. A directory that exists but cannot be opened exits 1. `list` and `show` do not change the file.
-7. `show` prints the contents of `cpp-logger-<YYYYMMDD>.log` for the given datestamp. A missing file exits 1. `list` and `show` use the same directory switches as `test`. `--prefix` wins when both directory switches are present. They do not read `PREFIX`, `HOME`, or the effective user id. Quiet, JSON, and a missing `--verbose` do not hide these prints. The display gate for log lines is `requirement-cpp-output.md`.
+7. `show` prints the contents of `cpp-logger-<YYYYMMDD>.log` for the given datestamp. A missing file exits 1. `list` and `show` use the same directory switches as `test`. `--prefix` wins when both directory switches are present. They do not read `PREFIX`, `HOME`, or the effective user id. Quiet and a missing `--verbose` do not hide these prints. JSON mode replaces them with the object in `requirement-cpp-json.md`. The display gate for log lines is `requirement-cpp-output.md`.
+8. The life of a dated file is `requirement-cpp-log-retention.md`. This file owns the name and the line. It does not archive a day and it does not delete a day.
 
 ### Sample code (this project)
 
@@ -322,10 +323,12 @@ Future editors must not add a second logging API, change the §2.1 line, add `lo
 | `docs/requirements/requirement-cpp-output.md` | Streams and quiet for this line |
 | `docs/requirements/requirement-cpp-json.md` | The object that replaces this line |
 | `docs/requirements/requirement-cpp-logger-folder.md` | Project-log-path is the log directory: `/var/cpp-logger/log` for root or sudo, and `$HOME/.app/cpp-logger/log` for every other user. The test stand-in is that shape under the directory the test command names. The cache path is a different directory. |
+| `docs/requirements/requirement-cpp-log-retention.md` | How long a dated day stays plain, compressed, and then gone |
+| `docs/requirements/requirement-cpp-logger-portable.md` | The same notebook with a later project's name |
 | `docs/requirements/requirement-cpp-tests.md` | The single binary that reads this file |
 | `docs/requirements/requirement-cpp-debug-mode.md` | When `logger_debug` is enabled |
 | `src/main/cpp/logger.cpp` | `logger_log` and `logger_emit_chronicle` |
 | `src/main/cpp/logger.h` | `logger_*` and `LOGGER_LEVEL_*` |
 
-**Last updated**: 2026-11-09
+**Last updated**: 2026-11-10
 **Owner**: Logger

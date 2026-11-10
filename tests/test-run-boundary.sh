@@ -29,7 +29,7 @@ g++ -std=c++17 -Wall -Wextra -Werror \
 bin="${work}/cpp-logger"
 
 about_out=$(env -u HOME -u PREFIX "${bin}" about)
-printf '%s\n' "${about_out}" | grep -F 'cpp-logger 1.0.8' >/dev/null
+printf '%s\n' "${about_out}" | grep -F 'cpp-logger 1.1.0' >/dev/null
 printf '%s\n' "${about_out}" | grep -F 'No database. No configuration file.' >/dev/null
 if [ -d /tmp/.app/cpp-logger ]; then
     echo "[ERROR] about created a log directory"
@@ -42,6 +42,18 @@ if [ -d /tmp/.app/cpp-logger ]; then
     echo "[ERROR] help created a log directory"
     exit 1
 fi
+help_json=$(env -u HOME -u PREFIX "${bin}" help --json)
+printf '%s\n' "${help_json}" | grep -F '"command":"help"' >/dev/null
+printf '%s\n' "${help_json}" | grep -F '"about"' >/dev/null
+if printf '%s\n' "${help_json}" | grep -F 'Usage:' >/dev/null; then
+    echo "[ERROR] help --json printed the usage text"
+    exit 1
+fi
+help_env=$(env -u HOME -u PREFIX JSON=1 "${bin}" help)
+if [ "${help_env}" != "${help_json}" ]; then
+    echo "[ERROR] JSON=1 help differed from help --json"
+    exit 1
+fi
 
 plain_out=$(env -u HOME -u PREFIX "${bin}")
 if printf '%s\n' "${plain_out}" | grep -F '] @main :]' >/dev/null; then
@@ -50,8 +62,8 @@ if printf '%s\n' "${plain_out}" | grep -F '] @main :]' >/dev/null; then
 fi
 
 verbose_out=$(env -u HOME -u PREFIX "${bin}" --verbose)
-printf '%s\n' "${verbose_out}" | grep -F '] @main :] Starting cpp-logger 1.0.8' >/dev/null
-printf '%s\n' "${verbose_out}" | grep -F '] @main :] Finished cpp-logger 1.0.8' >/dev/null
+printf '%s\n' "${verbose_out}" | grep -F '] @main :] Starting cpp-logger 1.1.0' >/dev/null
+printf '%s\n' "${verbose_out}" | grep -F '] @main :] Finished cpp-logger 1.1.0' >/dev/null
 if printf '%s\n' "${verbose_out}" | grep -F 'component main start' >/dev/null; then
     echo "[ERROR] component start was logged without debug mode"
     exit 1
@@ -61,8 +73,8 @@ debug_out=$(env -u HOME -u PREFIX "${bin}" --debug)
 printf '%s\n' "${debug_out}" | grep -F '] @main :] switch --debug' >/dev/null
 printf '%s\n' "${debug_out}" | grep -F '] @main :] component main start' >/dev/null
 printf '%s\n' "${debug_out}" | grep -F '] @main :] component main end' >/dev/null
-printf '%s\n' "${debug_out}" | grep -F '] @main :] Starting cpp-logger 1.0.8' >/dev/null
-printf '%s\n' "${debug_out}" | grep -F '] @main :] Finished cpp-logger 1.0.8' >/dev/null
+printf '%s\n' "${debug_out}" | grep -F '] @main :] Starting cpp-logger 1.1.0' >/dev/null
+printf '%s\n' "${debug_out}" | grep -F '] @main :] Finished cpp-logger 1.1.0' >/dev/null
 if printf '%s\n' "${debug_out}" | grep -F 'switch --quiet' >/dev/null; then
     echo "[ERROR] a switch that was not passed was logged"
     exit 1

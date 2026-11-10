@@ -79,6 +79,16 @@ void logger_error(const char *format, ...);
 void logger_fatal(const char *format, ...);
 void logger_debug(const char *format, ...);     // Controlled by DEBUG=1
 
+/* Purpose: apply the 7-day package and the 30-day removal to other dated names.
+   Parameters: folder is the log directory. active_basename is the plain file
+   this run is appending. today_yyyymmdd is the local date, eight digits.
+   Dependencies: the log directory, tar on this host, zip on Windows.
+   Why This Design: a check can call the same function with a frozen date.
+   CIAO Principles: a failed package leaves the plain file. This function does not exit.
+   Protection Rule: requirement-cpp-log-retention.md. help, about, list, show, and test do not call this.
+   Last updated: 2026-11-10 */
+void logger_maintain_directory(const char *folder, const char *active_basename, const char *today_yyyymmdd);
+
 void logger_print_help(void);
 void logger_print_about(void);
 

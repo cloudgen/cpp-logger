@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-11-10
+
+### Added
+- A normal run keeps a dated log as plain text for 7 days. A day older than that becomes one package, `tar.gz` on this host and `zip` on Windows, and the plain file is removed only after the package is complete. A day older than 30 days is removed. The age is the date in the file name. The file the run is appending stays plain.
+- `help`, `about`, `list`, `show`, and `test` do not archive a day and do not delete a day.
+- `tests/test-cpp-log-retention.sh` proves the 7-day plain file, the package, the 30-day removal, and a failed package that leaves the plain file.
+- `tests/test-cpp-logger-portable.sh` proves one name from `project.ini` and `project.h`.
+
+### Changed
+- `project.h`, `project.ini`, `meson.build`, `build.gradle`, `build.xml`, and the README Version badge say 1.1.0.
+- The about page builds the cache path and the persistence path from `PROJECT_NAME`.
+
 ## [1.0.8] - 2026-11-09
 
 ### Added
@@ -21,6 +33,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Target operating systems recorded for the console program: Debian, Ubuntu, CentOS, Red Hat, Alpine, Buildroot, macOS, Windows, Fedora, and Rocky Linux. The checked build remains `g++` on Linux.
 
 ## [Unreleased]
+
+### Added
+- `about` prints three live facts: which program this is, what this computer is, and where it is running from. The blocks are identity, the host check, and the install location. `tests/test-cpp-about.sh` covers that page.
 
 ### Changed
 - Law molds match the logger, output, and dated-file rules. `template-output-requirements.md` §3.2 holds the portable C++ bodies. The shell `out_*` rows are unchanged. Product requirements quote the matching functions from `src/main/cpp/logger.cpp` and `src/main/cpp/logger.h`.

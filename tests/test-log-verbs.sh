@@ -110,13 +110,22 @@ if [ "${quiet_list}" != "${expected}" ]; then
     printf '%s\n' "${quiet_list}"
     exit 1
 fi
+json_list=$(env -u HOME -u PREFIX "${bin}" list --home /tmp --json)
+printf '%s\n' "${json_list}" | grep -F '"command":"list"' >/dev/null
+printf '%s\n' "${json_list}" | grep -F '"files":["cpp-logger-20261002.log","cpp-logger-20261003.log"]' >/dev/null
+if printf '%s\n' "${json_list}" | grep -F 'notes.txt' >/dev/null; then
+    echo "[ERROR] list --json kept a non-log name"
+    exit 1
+fi
 json_show=$(env -u HOME -u PREFIX "${bin}" show --home /tmp --log-datestamp 20261003 --json)
-if [ "${json_show}" != "${show_out}" ]; then
-    echo "[ERROR] --json hid or changed the log file text"
+printf '%s\n' "${json_show}" | grep -F '"command":"show"' >/dev/null
+printf '%s\n' "${json_show}" | grep -F '] @main :] test log' >/dev/null
+if [ "${json_show}" = "${show_out}" ]; then
+    echo "[ERROR] show --json printed the human file"
     exit 1
 fi
 if printf '%s\n' "${json_show}" | grep -F '{"timestamp"' >/dev/null; then
-    echo "[ERROR] show printed a JSON object"
+    echo "[ERROR] show --json printed a log event"
     exit 1
 fi
 

@@ -34,7 +34,7 @@ The test command uses a stand-in. `--prefix <dir>` names `<dir>/var/cpp-logger` 
 | cpp-log-path | The log directory | Find the dated file |
 | `--debug` | Two debug lines | Read `logger folder` and `log file` |
 
-For a normal run, `{{app-name}}` is `cpp-logger`:
+For a normal run, `{{app-name}}` is `cpp-logger`. A later project uses its own name in the same places. That rule is `requirement-cpp-logger-portable.md`.
 
 | Environment | cpp-base-path | cpp-log-path |
 |-------------|---------------|--------------|

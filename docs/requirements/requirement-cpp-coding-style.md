@@ -2,7 +2,7 @@
 
 **file**: docs/requirements/requirement-cpp-coding-style.md
 **Status**: Active
-**Updated**: 2026-10-03
+**Updated**: 2026-11-10
 
 ## 1. Purpose
 
@@ -24,7 +24,7 @@ The tree comes from cpp-template and cpp-gnome-template. The primary language is
 
 | Includes | Excludes |
 |----------|----------|
-| `extern "C"`, comment shape, `logger_*` only, kebab-case and camel-case, quiet and debug accessors | Which files belong in `src/main/cpp` (`requirement-cpp-folder.md`) |
+| `extern "C"`, comment shape, `logger_*` only, kebab-case and camel-case, quiet and debug accessors | Which files belong in `src/main/cpp` (`requirement-cpp-folder.md`). Gradle banners (`requirement-cpp-gradle-coding-style.md`). Ant banners (`requirement-cpp-ant-coding-style.md`). Meson banners (`requirement-cpp-meson-coding-style.md`) |
 
 | Surface | What you open | What for |
 |---------|---------------|----------|
@@ -134,6 +134,8 @@ A C++ type that the logger header names, including `LoggerOutputLevel`, may sit 
 
 ## Comment style
 
+Gradle task banners are `requirement-cpp-gradle-coding-style.md`. Ant target banners are `requirement-cpp-ant-coding-style.md`. Meson banners are `requirement-cpp-meson-coding-style.md`. This section is the C++ block.
+
 - Every function must have:
   - Purpose
   - Parameters
@@ -163,5 +165,5 @@ A C++ type that the logger header names, including `LoggerOutputLevel`, may sit 
 
 ---
 
-**Last Updated**: 2026-10-03
+**Last Updated**: 2026-11-10
 **Owner**: CIAO-Lite Style Guide

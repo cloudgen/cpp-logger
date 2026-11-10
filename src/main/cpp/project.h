@@ -9,8 +9,8 @@
 #define PROJECT_NAME    "cpp-logger"
 
 #define VERSION_MAJOR   1
-#define VERSION_MINOR   0
-#define VERSION_PATCH   8
+#define VERSION_MINOR   1
+#define VERSION_PATCH   0
 
 #define PROJECT_DESCRIPTION "Console logger. Lines follow ChronicleLogger."
 

@@ -48,7 +48,7 @@ This file owns the console channel. Every product message goes through the logge
 - Hiding stdout does not skip the dated file. The human line is still appended, which is `requirement-cpp-logger.md`. `help` is not a log line and still prints.
 - While JSON mode is on, this human line is not what the terminal shows. `requirement-cpp-json.md` owns that mode. JSON mode implies quiet, and a call that would clear quiet does not clear it. `--verbose` does not add the human line beside the JSON object.
 - `logger_get_debug()` is declared beside the quiet accessors. When debug is enabled is `requirement-cpp-debug-mode.md`. There is no `logger_set_debug`. A debug event is still a stdout log line. Debug mode shows it, and `--verbose` shows it, while the run is not quiet and not JSON.
-- `list` and `show` print file names and file bytes. Those prints are not log lines. Quiet, JSON, and a missing `--verbose` do not hide them. What they print is `requirement-cpp-logger.md`.
+- `list` and `show` print file names and file bytes. Those prints are not log lines. Quiet and a missing `--verbose` do not hide them. JSON mode replaces them with the object in `requirement-cpp-json.md`. What they print is `requirement-cpp-logger.md`.
 
 ### Sample code (this project)
 

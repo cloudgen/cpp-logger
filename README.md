@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![GitHub Stars](https://img.shields.io/github/stars/cloudgen/cpp-logger?style=social)](https://github.com/cloudgen/cpp-logger)
-[![Version](https://img.shields.io/badge/Version-1.0.8-blue.svg)](https://github.com/cloudgen/cpp-logger/releases)
+[![Version](https://img.shields.io/badge/Version-1.1.0-blue.svg)](https://github.com/cloudgen/cpp-logger/releases)
 [![CIAO](https://img.shields.io/badge/Philosophy-CIAO%20Defensive-purple.svg)](https://gemini.com/cloudgen/ciao)
 [![UI](https://img.shields.io/badge/UI-console-brightgreen.svg)]()
 [![GrokRec](https://img.shields.io/badge/GrokRec-Reviewed-0A66C2?logo=ai&logoColor=white)](https://gemini.com/cloudgen/gemini-wilgat/blob/main/RECOMMENDATION.md)
@@ -11,7 +11,7 @@ Official Recommended by [grok](https://grok.com/c/655dd6ab-a6c6-47db-a63a-e5dd94
 
 **cpp-logger** is a small console program. Each log line follows ChronicleLogger with component `main`: `[YYYY-MM-DD HH:MM:SS] pid:<pid> [LEVEL] @main :] message`. It does not open a GTK or WebKit window.
 
-The running program, `project.ini`, and the Version badge report 1.0.8. The public home is `https://github.com/cloudgen/cpp-logger`.
+The running program, `project.ini`, and the Version badge report 1.1.0. The public home is `https://github.com/cloudgen/cpp-logger`.
 
 This project follows the **[CIAO](https://gemini.com/cloudgen/ciao)** Defensive Programming Philosophy.
 
@@ -21,9 +21,10 @@ This project follows the **[CIAO](https://gemini.com/cloudgen/ciao)** Defensive 
 
 - Console lines through `logger_info`, `logger_warn`, `logger_error`, and `logger_debug`
 - `--verbose`, `--quiet`, `--json`, `--debug`, `--prefix`, `--home`, `--log-datestamp`, and `DEBUG=1`. Stdout log lines stay hidden unless `--verbose` is set or debug mode is on. Quiet and JSON still hide those human lines. JSON mode implies quiet and prints only JSON lines. The human error and fatal lines stay on stderr.
-- A normal run logs `Starting cpp-logger 1.0.8` and `Finished cpp-logger 1.0.8`. Debug mode also logs each switch that was present, then `component main start` and `component main end`.
+- A normal run logs `Starting cpp-logger 1.1.0` and `Finished cpp-logger 1.1.0`. Debug mode also logs each switch that was present, then `component main start` and `component main end`.
+- A normal run leaves a dated log plain for 7 days, then stores that day as one `tar.gz` package (`zip` on Windows) and removes the plain file. After 30 days the day is gone. `help`, `about`, `list`, `show`, and `test` leave the log directory unchanged.
 - Root or sudo logs in `/var/cpp-logger/log`. Every other user logs in `$HOME/.app/cpp-logger/log`. `cpp-logger test --home /tmp --log-datestamp 20261003` writes `/tmp/.app/cpp-logger/log/cpp-logger-20261003.log`. `cpp-logger list --home /tmp` prints the log file names. `cpp-logger show --home /tmp --log-datestamp 20261003` prints that file. `cpp-logger test --prefix /tmp --log-datestamp 20261003` writes `/tmp/var/cpp-logger/log/cpp-logger-20261003.log`. Install bins stay `$PREFIX/bin` and `$HOME/.local/bin`.
-- `help` prints the flag list. `about` prints the name, version, and description
+- `help` prints the flag list. `about` prints which program this is, what this computer is, and where it is running from: the name, version, description, compiler, C++ standard, this computer, the global bin, the local bin, and the running path. It does not write a log line and it does not install
 - Primary build is `./build.sh`. Meson, GNU Make (`make`), Apache Ant (`build.xml`), and Gradle (`build.gradle`) compile the same sources. `./build.sh` does not grow verbs for those tools.
 - Strong **[CIAO](https://gemini.com/cloudgen/ciao)** defensive coding style
 - Path tokens use kebab-case. C++ types use camel-case. See `docs/requirements/requirement-cpp-coding-style.md`.
