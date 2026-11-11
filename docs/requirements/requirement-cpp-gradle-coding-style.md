@@ -109,7 +109,7 @@ Each row is a task the script defines. What the task does to the binary, the hos
 
 | Task | Group | Description |
 |------|-------|-------------|
-| `run` | `application` | Assemble the debug binary and execute `target/exe/debug/${PRJ}` |
+| `run` | `application` | Assemble the debug binary named by `requirement-cpp-debug-binary.md` and execute it |
 | `scriptVersion` | `help` | Print the Gradle script version and the project name |
 | `installDependencies` | `build` | Generate `project.sh` when it is absent, then run it |
 | `buildWindows` | `build` | Windows target host. A Linux host skips this task |

@@ -24,7 +24,7 @@
 #   meson compile -C target/exe/debug
 
 project('cpp-logger', 'c', 'cpp',
-    version: '1.2.0',
+    version: '1.2.1',
     license: 'MIT',
     default_options: [
         'c_std=c11',
@@ -157,6 +157,48 @@ exe = executable(prj, sources,
 )
 
 # =========================================================================
+# payload download
+#
+# Purpose:
+#   Copies the debug binary into download/ for payload download.
+# Parameters:
+#   none
+# Dependencies:
+#   executable()
+# Why This Design:
+#   The download file is the same bytes. It is not a second compile.
+# CIAO Principles Applied:
+#   Intentional: Linux and macOS use the PRJ name. Windows appends .exe.
+# Protection Rule:
+#   DO NOT drop this copy. DO NOT hardcode the project name past project().
+# =========================================================================
+exe_suffix = ''
+if is_windows
+    exe_suffix = '.exe'
+endif
+payload_copy = '''import os, shutil, sys
+os.makedirs(sys.argv[1], exist_ok=True)
+shutil.copy2(sys.argv[2], os.path.join(sys.argv[1], sys.argv[3]))
+with open(sys.argv[4], 'w', encoding='utf-8') as stamp:
+    stamp.write(sys.argv[2])
+'''
+payload = custom_target(
+    'payload-download',
+    build_by_default: true,
+    build_always_stale: true,
+    input: exe,
+    output: 'payload-download.stamp',
+    command: [
+        find_program('python3', 'python'),
+        '-c', payload_copy,
+        meson.project_source_root() / 'download',
+        '@INPUT@',
+        prj + exe_suffix,
+        '@OUTPUT@',
+    ],
+)
+
+# =========================================================================
 # run
 #
 # Purpose:
@@ -174,7 +216,7 @@ exe = executable(prj, sources,
 # =========================================================================
 run_target('run',
     command: [exe],
-    depends: exe
+    depends: [exe, payload]
 )
 
 if not fs.exists('project.sh')

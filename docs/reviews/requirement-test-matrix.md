@@ -13,6 +13,7 @@ Each row names the requirement and the TP ids that prove it. Status lives in `te
 | requirement-cpp-build-sh | TP-CPP-BUILD-SH | `tests/test-cpp-builds.sh` |
 | requirement-cpp-build-sh-coding-style | TP-CPP-BUILD-SH-STYLE | `tests/test-cpp-builds.sh` |
 | requirement-cpp-dependencies | TP-CPP-DEPENDENCIES | `tests/test-cpp-builds.sh` |
+| requirement-cpp-debug-binary | TP-CPP-DEBUG-BINARY | `tests/test-cpp-builds.sh` |
 | requirement-cpp-oop | TP-CPP-OOP | `tests/test-cpp-oop.sh` |
 | requirement-cpp-logger-folder, requirement-cpp-logger, requirement-cpp-output | TP-CPP-LOGGER-FOLDER | `tests/test-logger-folder.sh` |
 | requirement-cpp-logger, requirement-cpp-tests | TP-CPP-LOG-VERBS | `tests/test-log-verbs.sh` |
@@ -21,4 +22,4 @@ Each row names the requirement and the TP ids that prove it. Status lives in `te
 | requirement-cpp-log-retention | TP-CPP-LOG-RETENTION | `tests/test-cpp-log-retention.sh` |
 | requirement-cpp-logger-portable | TP-CPP-LOGGER-PORTABLE | `tests/test-cpp-logger-portable.sh` |
 
-**Last updated**: 2026-11-10
+**Last updated**: 2026-11-11

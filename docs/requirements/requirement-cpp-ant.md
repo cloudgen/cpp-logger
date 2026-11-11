@@ -1,6 +1,6 @@
 **file**: docs/requirements/requirement-cpp-ant.md
 **Status**: Active
-**Updated**: 2026-11-10
+**Updated**: 2026-11-11
 **Philosophy**: CIAO v2.10.2 / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
 
 ## 1. Purpose
@@ -9,7 +9,7 @@ This file owns Ant host, flags, pkg-config, the debug path, the `run` dependency
 
 ### 1.1 Human-facing
 
-**In one sentence:** Ant reads the project name from `project.ini`, compiles C and C++ together on Linux (glibc, uClibc, or musl), and writes `target/exe/debug/cpp-logger`.
+**In one sentence:** Ant reads the project name from `project.ini`, compiles C and C++ together on Linux (glibc, uClibc, or musl), and writes the debug binary from `requirement-cpp-debug-binary.md`.
 
 | Box | Meaning | Example |
 |-----|---------|---------|
@@ -25,7 +25,7 @@ This file owns Ant host, flags, pkg-config, the debug path, the `run` dependency
 |---------|---------------|----------|
 | `project.ini` | `PRJ` | The project name Ant uses |
 | `build.xml` | `compile`, `build`, and `run` | The Linux binary and the Windows, macOS, and libc host gates |
-| `target/exe/debug/` | `cpp-logger` | The debug executable |
+| `target/exe/debug/` | `cpp-logger` | The debug executable. The copy is `download/cpp-logger` |
 
 | You do… | What it means | What you type |
 |---------|---------------|---------------|
@@ -38,14 +38,14 @@ This file owns Ant host, flags, pkg-config, the debug path, the `run` dependency
 2. The Ant target hosts are Windows, macOS, and Linux. A Linux target uses one libc family: glibc, uClibc, or musl. `os` family `windows` selects Windows. `os` family `mac` selects macOS. A Unix host that is not macOS selects Linux. On Linux the script records `glibc`, `uclibc`, or `musl`. glibc, uClibc, and musl all run `compile`. The script does not reject uClibc or musl. Windows sets `build-windows`. macOS sets `build-macos`. Windows and macOS skip `compile`.
 3. On Linux, pkg-config is two commands. The module list is the table in `requirement-cpp-dependencies.md` (`glib-2.0`). The calls are `pkg-config --cflags` and `pkg-config --libs`. Each compile receives the `--cflags` tokens. The link receives the `--libs` tokens. The script keeps every token from those two calls.
 4. On Linux, `compile` accepts `.c` and `.cpp` in the same link. It searches `src/main/c` and `src/main/cpp`. A missing directory contributes no files. A `.c` file is compiled with `gcc -std=c11 -Wall -Wextra -g -O2`. A `.cpp` file is compiled with `g++ -std=c++17 -Wall -Wextra -g -O2`. The language level matches `requirement-class-software-dev.md`. One source file is one compiler invocation. The object files go under `target/exe/debug/obj`.
-5. On Linux, the link writes `target/exe/debug/${PRJ}`. `PRJ` is the name from rule 1. That path is the same file `./build.sh` writes. When any `.cpp` file was compiled, the linker is `g++`. When every object is from a `.c` file, the linker is `gcc`. The link line also adds `-pthread`, as `requirement-cpp-dependencies.md` requires.
-6. On Windows, `build` depends on `build-windows`. On macOS, `build` depends on `build-macos`. On Linux, for glibc, uClibc, and musl, `build` depends on `compile`. Each of those host targets writes `target/exe/debug/${PRJ}`. Windows and macOS skip `pkg-config`. `build` does not depend on `clean` or on `install`. `ant build` still only builds. `build` is the Ant target for the step Gradle calls `assemble`.
-7. The `run` target depends on `build` on Windows, on macOS, and on Linux for glibc, uClibc, and musl. Its executable is `target/exe/debug/${PRJ}`.
+5. On Linux, the link writes the debug binary from `requirement-cpp-debug-binary.md` and copies those bytes to the payload download file from that same requirement. `PRJ` is the name from rule 1. `./build.sh` writes that same file. When any `.cpp` file was compiled, the linker is `g++`. When every object is from a `.c` file, the linker is `gcc`. The link line also adds `-pthread`, as `requirement-cpp-dependencies.md` requires.
+6. On Windows, `build` depends on `build-windows`. On macOS, `build` depends on `build-macos`. On Linux, for glibc, uClibc, and musl, `build` depends on `compile`. Each of those host targets uses the debug file and the download file from `requirement-cpp-debug-binary.md`. Windows and macOS name that file and do not write it. Windows and macOS skip `pkg-config`. `build` does not depend on `clean` or on `install`. `ant build` still only builds. `build` is the Ant target for the step Gradle calls `assemble`.
+7. The `run` target depends on `build` on Windows, on macOS, and on Linux for glibc, uClibc, and musl. Its executable is the debug binary from `requirement-cpp-debug-binary.md`.
 8. `install` generates `project.sh` only when that file is absent. The generated file starts with `#!/bin/sh`, which `requirement-cpp-build-sh.md` owns. It exports both `SRC_C` and `SRC_CPP`. `SRC_C` is `$SRC/main/c`. `SRC_CPP` is `$SRC/main/cpp`. The generated file also exports `PRJ` from rule 1. An existing `project.sh` stays as it is. The generator does not create `src/main/c`.
 
 ### 2.1 Implementation notes (this project)
 
-`project.ini` sets `PRJ=cpp-logger`. The Linux debug binary is `target/exe/debug/cpp-logger`.
+`project.ini` sets `PRJ=cpp-logger`. The Linux debug binary is `target/exe/debug/cpp-logger`. The payload download file is `download/cpp-logger`. Windows appends `.exe` to both names. Those paths are `requirement-cpp-debug-binary.md`.
 
 The ship-unit files are `src/main/cpp/logger.cpp` and `src/main/cpp/main.cpp`. Both take the C++17 line in rule 4. `requirement-cpp-folder.md` names no `.c` file. A `.c` file that is present under `src/main/c` or `src/main/cpp` joins that same link on the C11 line.
 
@@ -74,7 +74,7 @@ export SRC_CPP=$SRC/main/cpp
 
 | TP-ID | Pass |
 |-------|------|
-| TP-CPP-ANT | `build.xml` loads `PRJ` from `project.ini` and the fallback is `cpp-logger`. The host gate is Windows, macOS, or Linux with glibc, uClibc, or musl. Linux calls `pkg-config --cflags` and `pkg-config --libs` as separate commands for `glib-2.0` and does not request `gtk+-3.0` or `webkit2gtk-4.1`. A `.cpp` file is compiled with `-std=c++17 -Wall -Wextra -g -O2`. A `.c` file present beside it is compiled with `-std=c11 -Wall -Wextra -g -O2` and linked in the same binary. The link writes `target/exe/debug/${PRJ}`. `run` depends on `build`. The generator exports `SRC_C=$SRC/main/c` and `SRC_CPP=$SRC/main/cpp` |
+| TP-CPP-ANT | `build.xml` loads `PRJ` from `project.ini` and the fallback is `cpp-logger`. The host gate is Windows, macOS, or Linux with glibc, uClibc, or musl. Linux calls `pkg-config --cflags` and `pkg-config --libs` as separate commands for `glib-2.0` and does not request `gtk+-3.0` or `webkit2gtk-4.1`. A `.cpp` file is compiled with `-std=c++17 -Wall -Wextra -g -O2`. A `.c` file present beside it is compiled with `-std=c11 -Wall -Wextra -g -O2` and linked in the same binary. The link writes the debug binary from `requirement-cpp-debug-binary.md` and copies it to `download/`. On Windows the file name ends in `.exe`. `run` depends on `build`. The generator exports `SRC_C=$SRC/main/c` and `SRC_CPP=$SRC/main/cpp` |
 
 ### Design-time verification
 

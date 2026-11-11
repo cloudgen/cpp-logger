@@ -24,7 +24,7 @@ This file owns local installation: placing the built program in the current user
 | Surface | What you open | What for |
 |---------|---------------|----------|
 | `~/.local/bin` | The installed program | Run it for this user |
-| `target/exe/debug/cpp-logger` | The built binary | The file that is copied |
+| `target/exe/debug/cpp-logger` | The Linux debug binary | The file that is copied. The `download/` copy is not this install |
 
 | You do… | What it means | What you type |
 |---------|---------------|---------------|
@@ -32,7 +32,7 @@ This file owns local installation: placing the built program in the current user
 
 ## 2. Core rules
 
-1. The built file is the simple-build binary from `requirement-cpp-project-structure.md`: `target/exe/debug/cpp-logger`. The command stops if that file is missing. It does not compile.
+1. The built file is the debug binary from `requirement-cpp-debug-binary.md`. This product's Linux file is `target/exe/debug/cpp-logger`. The command stops if that file is missing. It does not compile. It does not copy the `download/` payload file.
 2. The destination directory is `$HOME/.local/bin`. That directory is the install bin. It is not cpp-log-path. cpp-log-path for every user other than root or sudo is `$HOME/.app/cpp-logger/log` and is owned by `requirement-cpp-logger-folder.md`. This operator command reads `HOME`. The installed path is `$HOME/.local/bin/cpp-logger`. If `HOME` is empty, the command stops. It does not read `USER_BIN`. Tests must not run this command and must not expand `HOME`. The test command passes `--home /tmp` and is `requirement-cpp-tests.md`.
 3. The command creates the destination directory when it is missing. It does not create `/usr/local/bin`.
 4. The installed file mode is `0755`. It is not `0711` and it is not `0700`.

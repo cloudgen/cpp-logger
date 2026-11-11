@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![GitHub Stars](https://img.shields.io/github/stars/cloudgen/cpp-logger?style=social)](https://github.com/cloudgen/cpp-logger)
-[![Version](https://img.shields.io/badge/Version-1.2.0-blue.svg)](https://github.com/cloudgen/cpp-logger/releases)
+[![Version](https://img.shields.io/badge/Version-1.2.1-blue.svg)](https://github.com/cloudgen/cpp-logger/releases)
 [![CIAO](https://img.shields.io/badge/Philosophy-CIAO%20Defensive-purple.svg)](https://gemini.com/cloudgen/ciao)
 [![UI](https://img.shields.io/badge/UI-console-brightgreen.svg)]()
 [![GrokRec](https://img.shields.io/badge/GrokRec-Reviewed-0A66C2?logo=ai&logoColor=white)](https://gemini.com/cloudgen/gemini-wilgat/blob/main/RECOMMENDATION.md)
@@ -11,7 +11,7 @@ Official Recommended by [grok](https://grok.com/c/655dd6ab-a6c6-47db-a63a-e5dd94
 
 **cpp-logger** is a small console program. Each log line is `[YYYY-MM-DD HH:MM:SS] pid:<pid> [LEVEL]` plus ` @component` when the caller passes one, then ` :] message`. This program's own events pass `main`. It does not open a GTK or WebKit window.
 
-The running program, `project.ini`, and the Version badge report 1.2.0. The public home is `https://github.com/cloudgen/cpp-logger`.
+The running program, `project.ini`, and the Version badge report 1.2.1. The public home is `https://github.com/cloudgen/cpp-logger`.
 
 This project follows the **[CIAO](https://gemini.com/cloudgen/ciao)** Defensive Programming Philosophy.
 
@@ -21,7 +21,7 @@ This project follows the **[CIAO](https://gemini.com/cloudgen/ciao)** Defensive 
 
 - The ship unit is `class About`, `class Logger`, `class Invocation`, `class AboutCli`, and `class Help`. `main` constructs `About` and calls `run`. `About` is the runtime source of the name, the version, the paths, and the flags. It parses, binds `Logger`, routes one verb, and finishes. Console lines go through `logger_info`, `logger_warn`, `logger_error`, `logger_critical`, `logger_fatal`, and `logger_debug`. `Invocation`, `AboutCli`, and `Help` bind `Logger`. Under debug mode, a public call and a major member change are debug lines. `about` is `AboutCli`. `help` is `Help`
 - `--verbose`, `--quiet`, `--json`, `--debug`, `--prefix`, `--home`, `--log-datestamp`, and `DEBUG=1`. Stdout log lines stay hidden unless `--verbose` is set or debug mode is on. Quiet hides every human console line, including error, critical, and fatal, and the dated file still receives the line. JSON mode implies quiet and prints only JSON lines. Debug is `--debug`, or `DEBUG` or `debug` set to `show`, `true`, or `1`.
-- A normal run logs `Starting cpp-logger 1.2.0` and `Finished cpp-logger 1.2.0`. Debug mode also logs each switch that was present, then `component main start` and `component main end`. The about page names Persistence storage as the application directory and names the log folder as that directory plus `/log`.
+- A normal run logs `Starting cpp-logger 1.2.1` and `Finished cpp-logger 1.2.1`. Debug mode also logs each switch that was present, then `component main start` and `component main end`. The about page names Persistence storage as the application directory and names the log folder as that directory plus `/log`.
 - A normal run leaves a dated log plain for 7 days, then stores that day as one `tar.gz` package (`zip` on Windows) and removes the plain file. After 30 days the day is gone. `help`, `about`, `list`, and `show` leave the log directory unchanged. A log call whose dated path changes, including `test`, runs that maintenance.
 - The base directory is an explicit base, else the conda prefix, else the pyenv virtualenv, else `VIRTUAL_ENV`, else `/var/cpp-logger` for effective user id 0, else `$HOME/.app/cpp-logger`. The log directory is that base plus `/log`. `cpp-logger test --home /tmp --log-datestamp 20261003` writes `/tmp/.app/cpp-logger/log/cpp-logger-20261003.log`. `cpp-logger list --home /tmp` prints the log file names. `cpp-logger show --home /tmp --log-datestamp 20261003` prints that file. `cpp-logger test --prefix /tmp --log-datestamp 20261003` writes `/tmp/var/cpp-logger/log/cpp-logger-20261003.log`. Install bins stay `$PREFIX/bin` and `$HOME/.local/bin`.
 - `help` prints the flag list. `about` prints which program this is, what this computer is, and where it is running from: the name, version, description, compiler, C++ standard, this computer, the global bin, the local bin, and the running path. It does not write a log line and it does not install
@@ -61,6 +61,8 @@ sudo apt install build-essential pkg-config meson ninja-build libglib2.0-dev
 ./build.sh build
 ./target/exe/debug/cpp-logger
 ```
+
+On Linux and macOS the debug binary is `target/exe/debug/cpp-logger`. On Windows that file is `target/exe/debug/cpp-logger.exe`. The same bytes are copied to `download/cpp-logger` (`.exe` on Windows) for payload download. GNU Make, Ant, Gradle, and Meson write that same pair. The path owner is `docs/requirements/requirement-cpp-debug-binary.md`.
 
 `./build.sh install` may use `sudo apt` to install GLib headers. It does not copy the program.
 

@@ -1,9 +1,9 @@
 #!/bin/sh
 # TP-CPP-ANT TP-CPP-ANT-STYLE TP-CPP-GRADLE TP-CPP-GRADLE-STYLE
 # TP-CPP-MESON TP-CPP-MESON-STYLE TP-CPP-DEPENDENCIES TP-CPP-BUILD-SH
-# TP-CPP-BUILD-SH-STYLE
-# Reads build.xml, build.gradle, and meson.build.
-# Runs ant compile and gradle assemble. Does not run meson or a package install.
+# TP-CPP-BUILD-SH-STYLE TP-CPP-DEBUG-BINARY
+# Reads build.xml, build.gradle, meson.build, build.sh, and Makefile.
+# Runs ant compile, gradle assemble, and make. Does not run meson or a package install.
 # Does not call mktemp. Does not read, assign, or delete HOME.
 set -eu
 
@@ -27,6 +27,27 @@ forbid() {
     token=$3
     if grep -F -q -- "$token" "$file"; then
         echo "[FAIL] ${id} forbids in ${file}: ${token}"
+        fail=1
+    fi
+}
+
+same_bytes() {
+    id=$1
+    tool=$2
+    debug_bin="target/exe/debug/${prj}"
+    download_bin="download/${prj}"
+    if [ ! -f "${debug_bin}" ]; then
+        echo "[FAIL] ${id} ${tool} missing ${debug_bin}"
+        fail=1
+        return
+    fi
+    if [ ! -f "${download_bin}" ]; then
+        echo "[FAIL] ${id} ${tool} missing ${download_bin}"
+        fail=1
+        return
+    fi
+    if ! cmp -s "${debug_bin}" "${download_bin}"; then
+        echo "[FAIL] ${id} ${tool} debug binary and download copy differ"
         fail=1
     fi
 }
@@ -328,6 +349,23 @@ if ! grep -E -q '^install\(\)' project.sh; then
     fail=1
 fi
 
+# TP-CPP-DEBUG-BINARY
+for build_file in build.sh Makefile build.xml build.gradle meson.build; do
+    need TP-CPP-DEBUG-BINARY "${build_file}" 'target/exe/debug'
+    need TP-CPP-DEBUG-BINARY "${build_file}" 'download'
+    need TP-CPP-DEBUG-BINARY "${build_file}" '.exe'
+done
+need TP-CPP-DEBUG-BINARY .gitignore '/download/'
+need TP-CPP-DEBUG-BINARY build.sh 'MINGW'
+need TP-CPP-DEBUG-BINARY Makefile 'Windows_NT'
+need TP-CPP-DEBUG-BINARY build.xml 'exe.suffix'
+need TP-CPP-DEBUG-BINARY build.gradle 'osWindows'
+need TP-CPP-DEBUG-BINARY meson.build 'is_windows'
+prj=$(awk -F= '/^PRJ=/{print $2; exit}' project.ini)
+if [ -z "${prj}" ]; then
+    prj=cpp-logger
+fi
+
 # Live compile. A missing src/main/c must be reported and must not fail the build.
 ant_log=/tmp/cpp-logger-ant-check.log
 gradle_log=/tmp/cpp-logger-gradle-check.log
@@ -339,6 +377,7 @@ if [ -d src/main/c ]; then
     fail=1
 fi
 
+rm -f "download/${prj}"
 if ! env -u HOME ant compile > "${ant_log}" 2>&1; then
     echo "[FAIL] TP-CPP-ANT ant compile exited non-zero"
     cat "${ant_log}"
@@ -356,7 +395,9 @@ if grep -F -q 'src/main/c does not exist' "${ant_log}"; then
     echo "[FAIL] TP-CPP-ANT ant compile still dies on a missing src/main/c"
     fail=1
 fi
+same_bytes TP-CPP-DEBUG-BINARY 'ant compile'
 
+rm -f "download/${prj}"
 if ! env -u HOME gradle assemble --offline --console=plain > "${gradle_log}" 2>&1; then
     echo "[FAIL] TP-CPP-GRADLE gradle assemble exited non-zero"
     cat "${gradle_log}"
@@ -374,6 +415,16 @@ if grep -F -q 'src/main/c does not exist' "${gradle_log}"; then
     echo "[FAIL] TP-CPP-GRADLE gradle assemble still dies on a missing src/main/c"
     fail=1
 fi
+same_bytes TP-CPP-DEBUG-BINARY 'gradle assemble'
+
+make_log=/tmp/cpp-logger-make-check.log
+rm -f "download/${prj}"
+if ! env -u HOME make > "${make_log}" 2>&1; then
+    echo "[FAIL] TP-CPP-DEBUG-BINARY make exited non-zero"
+    cat "${make_log}"
+    fail=1
+fi
+same_bytes TP-CPP-DEBUG-BINARY make
 
 if [ -d src/main/c ]; then
     echo "[FAIL] TP-CPP-ANT live compile created src/main/c"
@@ -384,7 +435,7 @@ if ! cmp -s project.sh "${project_before}"; then
     fail=1
 fi
 
-rm -f "${ant_log}" "${gradle_log}" "${project_before}"
+rm -f "${ant_log}" "${gradle_log}" "${make_log}" "${project_before}"
 
 if [ "$fail" -eq 0 ]; then
     echo "PASS cpp builds"

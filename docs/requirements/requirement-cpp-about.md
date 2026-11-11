@@ -43,7 +43,7 @@ The host check is the quality-assurance record of this run: which compiler built
 
 ### 2.1 Identity
 
-4. The first five lines are, in order: `{APP_NAME} {version}`, `{PROJECT_DESCRIPTION}`, `Domain: No database. No configuration file.`, `Runtime tools: none`, `Entry points: {APP_NAME}`. `{APP_NAME}` is `PROJECT_NAME` in `src/main/cpp/project.h` (`cpp-logger`). `{version}` is `VERSION_MAJOR`, `VERSION_MINOR`, and `VERSION_PATCH` from that header, printed as `1.2.0`. `{PROJECT_DESCRIPTION}` is the `PROJECT_DESCRIPTION` macro. This file owns the domain sentence. The version digits stay in `project.h`.
+4. The first five lines are, in order: `{APP_NAME} {version}`, `{PROJECT_DESCRIPTION}`, `Domain: No database. No configuration file.`, `Runtime tools: none`, `Entry points: {APP_NAME}`. `{APP_NAME}` is `PROJECT_NAME` in `src/main/cpp/project.h` (`cpp-logger`). `{version}` is `VERSION_MAJOR`, `VERSION_MINOR`, and `VERSION_PATCH` from that header, printed as `1.2.1`. `{PROJECT_DESCRIPTION}` is the `PROJECT_DESCRIPTION` macro. This file owns the domain sentence. The version digits stay in `project.h`.
 5. The runtime-tools line stays `none`. The page does not name FFmpeg, GTK, or WebKit.
 
 ### 2.2 Host check
@@ -107,7 +107,7 @@ HalloTui prints a star box and classifies the path with three install-box senten
 Identity block this file owns:
 
 ```text
-cpp-logger 1.2.0
+cpp-logger 1.2.1
 Console logger. Lines follow ChronicleLogger.
 Domain: No database. No configuration file.
 Runtime tools: none

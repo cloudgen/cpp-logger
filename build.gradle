@@ -34,7 +34,7 @@ plugins {
     id 'cpp-application'
 }
 
-def THIS_VERSION = '1.2.0'
+def THIS_VERSION = '1.2.1'
 
 // =========================================================================
 // Target host
@@ -133,6 +133,8 @@ def LIB_VERSIONS    = (projectProps['LIB_VERSIONS'] ?: 'glib-2.0').split(/\s+/).
 def SRC_C           = "${SRC}/main/c"
 def SRC_CPP         = "${SRC}/main/cpp"
 def BUILD_DEBUG     = "${BUILD}/exe/debug"
+def exeSuffix       = osWindows ? '.exe' : ''
+def debugBinaryRel  = "${BUILD_DEBUG}/${PRJ}${exeSuffix}"
 
 def cDir            = file(SRC_C)
 def cppDir          = file(SRC_CPP)
@@ -234,7 +236,8 @@ def gppLinkerArgs = ["-Wl,--export-dynamic", "-pthread"] +
 // Purpose:
 //   Configures the cpp-application plugin for C/C++ compilation and linking.
 //   CppCompile adds -std=c++17 -Wall -Wextra -g -O2.
-//   linkDebug writes target/exe/debug/${PRJ}.
+//   linkDebug writes target/exe/debug/${PRJ} on Linux and macOS.
+//   On Windows the file name ends in .exe. A Linux link copies the same bytes to download/.
 // Parameters:
 //   none
 // Dependencies:
@@ -283,8 +286,27 @@ application {
             }
         }
 
-        // Force consistent binary output location
-        linkTask.linkerArgs.addAll(['-o', "${BUILD_DEBUG}/${PRJ}"])
+        // Force consistent binary output location.
+        // Linux and macOS: target/exe/debug/${PRJ}
+        // Windows: target/exe/debug/${PRJ}.exe
+        linkTask.linkerArgs.addAll(['-o', debugBinaryRel])
+        if (osLinux) {
+            def payload = file("${rootDir}/download/${PRJ}${exeSuffix}")
+            linkTask.outputs.file(payload)
+            linkTask.doLast {
+                def built = file(debugBinaryRel)
+                if (!built.isFile()) {
+                    throw new GradleException("Debug binary missing: ${debugBinaryRel}")
+                }
+                payload.parentFile.mkdirs()
+                java.nio.file.Files.copy(
+                    built.toPath(),
+                    payload.toPath(),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING
+                )
+                println "[INFO] Payload download: download/${PRJ}${exeSuffix}"
+            }
+        }
     }
 }
 
@@ -425,7 +447,7 @@ tasks.register('buildWindows') {
     description = 'Windows target host. A Linux host skips this task'
     onlyIf { osWindows }
     doLast {
-        println "[INFO] Windows target host. Debug binary: ${BUILD_DEBUG}/${PRJ}"
+        println "[INFO] Windows target host. Debug binary: ${BUILD_DEBUG}/${PRJ}.exe. Payload download: download/${PRJ}.exe. This task skips pkg-config and does not write the file."
     }
 }
 
@@ -450,7 +472,7 @@ tasks.register('buildMac') {
     description = 'macOS target host. A Linux host skips this task'
     onlyIf { osMac }
     doLast {
-        println "[INFO] macOS target host. Debug binary: ${BUILD_DEBUG}/${PRJ}"
+        println "[INFO] macOS target host. Debug binary: ${BUILD_DEBUG}/${PRJ}. Payload download: download/${PRJ}. This task skips pkg-config and does not write the file."
     }
 }
 
@@ -458,7 +480,7 @@ tasks.register('buildMac') {
 // run
 //
 // Purpose:
-//   Assembles the debug binary and executes target/exe/debug/${PRJ}.
+//   Assembles the debug binary and executes target/exe/debug/${PRJ} (.exe on Windows).
 // Parameters:
 //   none
 // Dependencies:
@@ -477,7 +499,7 @@ if (tasks.findByName('run') == null) {
         dependsOn 'assemble'
         doLast {
             exec {
-                commandLine "${BUILD_DEBUG}/${PRJ}"
+                commandLine debugBinaryRel
             }
         }
     }
@@ -495,6 +517,12 @@ if (osWindows) {
 if (osMac) {
     tasks.named('assemble').configure {
         dependsOn 'buildMac'
+    }
+}
+
+tasks.matching { it.name == 'clean' }.configureEach {
+    doLast {
+        delete "${rootDir}/download"
     }
 }
 

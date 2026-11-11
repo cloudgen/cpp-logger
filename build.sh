@@ -33,7 +33,19 @@ fi
 PROJECT_NAME="${PRJ:-app}"
 SRC_DIR="${SRC_C:-src/main/cpp}"
 BUILD_DIR="${BUILD_DEBUG:-target/exe/debug}"
-BINARY="${BUILD_DIR}/${PROJECT_NAME}"
+EXE_SUFFIX=""
+HOST_UNAME=$(uname -s 2>/dev/null || printf '%s' '')
+case "${HOST_UNAME}" in
+    MINGW*|MSYS*|CYGWIN*|Windows_NT)
+        EXE_SUFFIX=".exe"
+        ;;
+esac
+if [ "${OS:-}" = "Windows_NT" ]; then
+    EXE_SUFFIX=".exe"
+fi
+BINARY="${BUILD_DIR}/${PROJECT_NAME}${EXE_SUFFIX}"
+DOWNLOAD_DIR="download"
+DOWNLOAD_BINARY="${DOWNLOAD_DIR}/${PROJECT_NAME}${EXE_SUFFIX}"
 
 # =============================================================================
 # build_install_deps() - Install the apt packages the compile needs
@@ -145,11 +157,11 @@ build_install_global() {
 # - Caution: a missing directory does not fail the clean.
 # - Intentional: clean removes build output and leaves the sources.
 #
-# Last reviewed: 2026-11-10
+# Last reviewed: 2026-11-11
 # =============================================================================
 build_clean() {
     echo "[INFO] Cleaning build artifacts..."
-    rm -rf "${BUILD_DIR}" target/ build/ .gradle/ autom4te.cache 2>/dev/null || true
+    rm -rf "${BUILD_DIR}" "${DOWNLOAD_DIR}" target/ build/ .gradle/ autom4te.cache 2>/dev/null || true
     echo "[INFO] Clean completed."
 }
 
@@ -165,7 +177,7 @@ build_clean() {
 # - Intentional: C and C++ stay in one link. The flags stay on these lines.
 # - Over-protect: the protection block below stays with this function.
 #
-# Last reviewed: 2026-11-10
+# Last reviewed: 2026-11-11
 # =============================================================================
 # =============================================================================
 # CIAO PROTECTION BLOCK - build_link() function (Sacred)
@@ -226,8 +238,12 @@ build_link() {
 
     rm -f *.o
 
+    mkdir -p "${DOWNLOAD_DIR}"
+    cp "${BINARY}" "${DOWNLOAD_BINARY}"
+
     echo "[INFO] Build successful!"
     echo "[INFO] Binary ready → ${BINARY}"
+    echo "[INFO] Download ready → ${DOWNLOAD_BINARY}"
     echo "[INFO] Run with: ${BINARY}"
 }
 

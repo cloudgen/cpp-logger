@@ -6,6 +6,8 @@
 target/
 build/
 builddir/
+# Payload download copy. A build writes it. It is not source.
+/download/
 gemini-wilgat
 
 # Binary executables

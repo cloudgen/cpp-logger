@@ -1,6 +1,6 @@
 **file**: docs/requirements/requirement-cpp-meson.md
 **Status**: Active
-**Updated**: 2026-11-10
+**Updated**: 2026-11-11
 **Philosophy**: CIAO v2.10.2 / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
 
 ## 1. Purpose
@@ -9,7 +9,7 @@ This file owns `meson.build`. It follows the host set, the C and C++ flags, the 
 
 ### 1.1 Human-facing
 
-**In one sentence:** Meson reads the binary name from `project.ini`, compiles C and C++ on Linux (glibc, uClibc, or musl), and writes `target/exe/debug/cpp-logger`.
+**In one sentence:** Meson reads the binary name from `project.ini`, compiles C and C++ on Linux (glibc, uClibc, or musl), and writes the debug binary from `requirement-cpp-debug-binary.md`.
 
 | Box | Meaning | Example |
 |-----|---------|---------|
@@ -25,7 +25,7 @@ This file owns `meson.build`. It follows the host set, the C and C++ flags, the 
 |---------|---------------|----------|
 | `project.ini` | `PRJ` | The binary name Meson uses |
 | `meson.build` | `executable()` and `run_target()` | The Linux binary and the host gate |
-| `target/exe/debug/` | `cpp-logger` | The debug executable |
+| `target/exe/debug/` | `cpp-logger` | The debug executable. The copy is `download/cpp-logger` |
 
 | You do… | What it means | What you type |
 |---------|---------------|---------------|
@@ -38,18 +38,18 @@ This file owns `meson.build`. It follows the host set, the C and C++ flags, the 
 2. The Meson target hosts are Windows, macOS, and Linux. A Linux target uses one libc family: glibc, uClibc, or musl. `host_machine.system()` of `windows` selects Windows. `host_machine.system()` of `darwin` selects macOS. `host_machine.system()` of `linux` selects Linux. On Linux the script records `glibc` when the compiler defines `__GLIBC__`, `uclibc` when it defines `__UCLIBC__`, and `musl` when it defines neither. glibc, uClibc, and musl all run the Linux compile. The script does not reject uClibc or musl. This is the same host set as `requirement-cpp-ant.md` and `requirement-cpp-gradle.md`. Meson does not add `build-windows`, `build-macos`, `buildWindows`, or `buildMac`.
 3. On Linux, GLib and threads are `dependency('glib-2.0')` and `dependency('threads')`. That is the Meson form of the split `pkg-config --cflags` and `pkg-config --libs` calls in the Ant and Gradle files. Compile arguments from `glib-2.0` go on the compile. Link arguments from `glib-2.0` go on the link. `threads` adds `-pthread`, as `requirement-cpp-dependencies.md` requires. The module list stays that table. The file does not request `gtk+-3.0` or `webkit2gtk-4.1`.
 4. On Linux, one `executable()` accepts `.c` and `.cpp` in the same link. It searches `src/main/c` and `src/main/cpp`. A missing directory contributes no files. The `project()` options are `c_std=c11`, `cpp_std=c++17`, `warning_level=2`, and `buildtype=debugoptimized`. `warning_level=2` is `-Wall -Wextra`. `buildtype=debugoptimized` is `-g -O2`. A `.c` file uses the C compiler. A `.cpp` file uses the C++ compiler. When any `.cpp` file is present, the linker is the C++ linker. The language level matches `requirement-class-software-dev.md`.
-5. The setup directory is `target/exe/debug`. `meson setup target/exe/debug` then `meson compile -C target/exe/debug` writes `target/exe/debug/${PRJ}`. `PRJ` is the name from rule 1. That path is the same file `./build.sh` writes. Ant's `build` and Gradle's `assemble` are this compile. `meson compile` still only builds.
+5. The setup directory is `target/exe/debug`. `meson setup target/exe/debug` then `meson compile -C target/exe/debug` writes the debug binary from `requirement-cpp-debug-binary.md` and copies those bytes to the payload download file from that same requirement. `PRJ` is the name from rule 1. `./build.sh` writes that same file. Ant's `build` and Gradle's `assemble` are this compile. `meson compile` still only builds. On Windows the file name ends in `.exe`.
 6. On Windows and on macOS, `meson.build` does not call `dependency('glib-2.0')` and does not call pkg-config. The Linux `executable()` is the compile for glibc, uClibc, and musl.
-7. `run_target('run')` depends on the `executable()` from rule 4. `meson compile -C target/exe/debug --target run` builds that binary and then executes `target/exe/debug/${PRJ}` on Windows, on macOS, and on Linux for glibc, uClibc, and musl. This is the Meson form of Ant `run` depending on `build` and Gradle `run` depending on `assemble`.
+7. `run_target('run')` depends on the `executable()` from rule 4 and on the payload copy. `meson compile -C target/exe/debug --target run` builds that binary and then executes the debug binary from `requirement-cpp-debug-binary.md` on Windows, on macOS, and on Linux for glibc, uClibc, and musl. This is the Meson form of Ant `run` depending on `build` and Gradle `run` depending on `assemble`.
 8. Setup generates `project.sh` only when that file is absent. The generated file exports both `SRC_C` and `SRC_CPP`, the same pair as `requirement-cpp-ant.md`: `SRC_C` is `$SRC/main/c` and `SRC_CPP` is `$SRC/main/cpp`. The generated file also exports `PRJ` from rule 1. An existing `project.sh` stays as it is. The generator does not create `src/main/c` and does not run apt.
 
 ### 2.1 Implementation notes (this project)
 
-`project.ini` sets `PRJ=cpp-logger`. The Linux debug binary is `target/exe/debug/cpp-logger`.
+`project.ini` sets `PRJ=cpp-logger`. The Linux debug binary is `target/exe/debug/cpp-logger`. The payload download file is `download/cpp-logger`. Windows appends `.exe` to both names. Those paths are `requirement-cpp-debug-binary.md`.
 
 The ship-unit translation units are `src/main/cpp/main.cpp`, `src/main/cpp/about.cpp`, `src/main/cpp/aboutcli.cpp`, `src/main/cpp/help.cpp`, `src/main/cpp/invocation.cpp`, and `src/main/cpp/logger.cpp`. Each takes the C++17 options in rule 4. `meson.build` collects every `.cpp` file under `src/main/cpp`. `requirement-cpp-folder.md` names no `.c` file. A `.c` file that is present under `src/main/c` or `src/main/cpp` joins that same link on the C11 option.
 
-`project()` `version` is `1.2.0`, the same string as `project.ini` `VERSION` and `src/main/cpp/project.h`.
+`project()` `version` is `1.2.1`, the same string as `project.ini` `VERSION` and `src/main/cpp/project.h`.
 
 Generated exports, when `project.sh` is absent:
 
@@ -76,7 +76,7 @@ export SRC_CPP=$SRC/main/cpp
 
 | TP-ID | Pass |
 |-------|------|
-| TP-CPP-MESON | `meson.build` reads `PRJ` from `project.ini` and the fallback is `cpp-logger`. The host gate is Windows, macOS, or Linux with glibc, uClibc, or musl. Linux uses `dependency('glib-2.0')` and `dependency('threads')` and does not request `gtk+-3.0` or `webkit2gtk-4.1`. Options are `c_std=c11`, `cpp_std=c++17`, `warning_level=2`, and `buildtype=debugoptimized`. A `.c` file and a `.cpp` file share one `executable()`. `meson compile -C target/exe/debug` writes `target/exe/debug/${PRJ}`. `run_target('run')` depends on that executable. The generator exports `SRC_C=$SRC/main/c` and `SRC_CPP=$SRC/main/cpp` |
+| TP-CPP-MESON | `meson.build` reads `PRJ` from `project.ini` and the fallback is `cpp-logger`. The host gate is Windows, macOS, or Linux with glibc, uClibc, or musl. Linux uses `dependency('glib-2.0')` and `dependency('threads')` and does not request `gtk+-3.0` or `webkit2gtk-4.1`. Options are `c_std=c11`, `cpp_std=c++17`, `warning_level=2`, and `buildtype=debugoptimized`. A `.c` file and a `.cpp` file share one `executable()`. `meson compile -C target/exe/debug` writes the debug binary from `requirement-cpp-debug-binary.md` and copies it to `download/`. On Windows the file name ends in `.exe`. `run_target('run')` depends on that executable. The generator exports `SRC_C=$SRC/main/c` and `SRC_CPP=$SRC/main/cpp` |
 
 ### Design-time verification
 

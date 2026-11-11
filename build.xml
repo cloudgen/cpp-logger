@@ -20,7 +20,7 @@
        DO NOT hardcode the project name. DO NOT remove these comments.
      ========================================================================= -->
 <project name="ant-build" default="build" basedir=".">
-    <property name="version" value="1.2.0"/>
+    <property name="version" value="1.2.1"/>
     <!-- Define project properties -->
     <property file="project.ini"/>
     <!-- Missing-key fallback. This is the only product-id literal in this file. -->
@@ -31,7 +31,14 @@
     <property name="src.cpp.dir" value="${src.dir}/main/cpp"/>
     <property name="build.dir" value="target"/>
     <property name="build.debug.dir" value="target/exe/debug"/>
-    <property name="version" value="1.2.0"/>
+    <condition property="exe.suffix" value=".exe">
+        <os family="windows"/>
+    </condition>
+    <property name="exe.suffix" value=""/>
+    <property name="debug.binary" value="${build.debug.dir}/${app.name}${exe.suffix}"/>
+    <property name="download.dir" value="download"/>
+    <property name="download.binary" value="${download.dir}/${app.name}${exe.suffix}"/>
+    <property name="version" value="1.2.1"/>
     <property name="author" value="july.wong@gmail.com"/>
     <property name="lib.versions" value="glib-2.0"/>
     <property name="project.sh" value="./project.sh"/>
@@ -69,11 +76,11 @@
     </target>
 
     <target name="build-windows" if="os.windows" description="Windows target host. A Linux host skips this target">
-        <echo message="Windows target host. Debug binary: ${build.debug.dir}/${app.name}"/>
+        <echo message="Windows target host. Debug binary: ${debug.binary}. Payload download: ${download.binary}. This target skips pkg-config and does not write the file."/>
     </target>
 
     <target name="build-macos" if="os.mac" description="macOS target host. A Linux host skips this target">
-        <echo message="macOS target host. Debug binary: ${build.debug.dir}/${app.name}"/>
+        <echo message="macOS target host. Debug binary: ${debug.binary}. Payload download: ${download.binary}. This target skips pkg-config and does not write the file."/>
     </target>
 
     <!-- =========================================================================
@@ -391,8 +398,8 @@ install
         </exec>
         <exec executable="./configure"/>
         <exec executable="make"/>
-        <move file="${app.name}" tofile="${build.debug.dir}/${app.name}"/>
-        <echo message="Please run: ${build.debug.dir}/${app.name}"/>
+        <move file="${app.name}" tofile="${debug.binary}"/>
+        <echo message="Please run: ${debug.binary}"/>
     </target>
 
     <target name="check-c-source">
@@ -566,10 +573,13 @@ install
         <exec executable="g++" failonerror="true">
             <arg line="${object.files}"/>
             <arg value="-o"/>
-            <arg value="${build.debug.dir}/${app.name}"/>
+            <arg value="${debug.binary}"/>
             <arg line="${pkg.libs}"/>
             <arg value="-pthread"/>
         </exec>
+        <mkdir dir="${download.dir}"/>
+        <copy file="${debug.binary}" tofile="${download.binary}" overwrite="true"/>
+        <echo message="Payload download: ${download.binary}"/>
         <delete>
             <fileset dir="." includes="*.o"/>
         </delete>
@@ -605,16 +615,19 @@ install
             <arg value="-O2"/>
             <arg line="${src.file.lists}"/>
             <arg value="-o"/>
-            <arg value="${build.debug.dir}/${app.name}"/>
+            <arg value="${debug.binary}"/>
             <arg line="${pkg.cflags}"/>
             <arg line="${pkg.libs}"/>
             <arg value="-pthread"/>
         </exec>
+        <mkdir dir="${download.dir}"/>
+        <copy file="${debug.binary}" tofile="${download.binary}" overwrite="true"/>
+        <echo message="Payload download: ${download.binary}"/>
     </target>
     <!-- Target to move the compiled binary to the exec directory -->
     <target name="move" depends="compile">
         <mkdir dir="${build.debug.dir}"/> 
-        <move file="${app.name}" tofile="${build.debug.dir}/${app.name}"/> <!-- Move to the final location -->
+        <move file="${app.name}" tofile="${debug.binary}"/> <!-- Move to the final location -->
     </target>
 
     <!-- =========================================================================
@@ -641,6 +654,7 @@ install
         <delete file="${src.c.dir}/Makefile.am"/>
         <delete file="${src.cpp.dir}/Makefile.am"/>
         <delete dir="${build.dir}"/>
+        <delete dir="${download.dir}"/>
         <delete dir="build"/>
         <delete dir=".gradle"/>
         <delete file="Makefile"/>
@@ -683,16 +697,16 @@ install
      Why This Design:
        One target is the default. run depends on it.
      CIAO Principles Applied:
-       Anti-fragile: the binary path is ${build.debug.dir}/${app.name}.
+       Anti-fragile: the binary path is ${debug.binary}.
      Protection Rule:
        DO NOT rename this target. DO NOT hardcode the project name.
      ========================================================================= -->
     <target name="build" depends="compile,build-windows,build-macos" description="Builds the debug binary and does not launch it">
-        <echo message="Build completed. You can run the application with the command: ${build.debug.dir}/${app.name}"/>
+        <echo message="Build completed. Debug binary: ${debug.binary}. Payload download: ${download.binary}"/>
     </target>
 
     <target name="check-exe">
-      <available file="${build.debug.dir}/${app.name}" property="exe-exists"/>
+      <available file="${debug.binary}" property="exe-exists"/>
     </target>
 
     <target name="build-if-not-exists" depends="check-exe" unless="exe-exists">
@@ -716,6 +730,6 @@ install
        DO NOT rename this target. DO NOT hardcode the project name.
      ========================================================================= -->
     <target name="run" depends="build" description="Depends on build, then executes the debug binary">
-        <exec executable="${build.debug.dir}/${app.name}"/>
+        <exec executable="${debug.binary}"/>
     </target>
 </project>

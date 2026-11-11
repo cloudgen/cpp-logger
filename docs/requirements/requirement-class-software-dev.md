@@ -51,7 +51,7 @@ This workspace is a software product people install and run: a console program. 
 
 - Display name: `cpp-logger` (`PROJECT_NAME` in `src/main/cpp/project.h`).
 - Runtime id: `cpp-logger` (`PROJECT_ID`).
-- Version macros in `project.h` are the runtime version `1.2.0`. `project.ini` `VERSION`, `meson.build`, and the README Version badge use the same string.
+- Version macros in `project.h` are the runtime version `1.2.1`. `project.ini` `VERSION`, `meson.build`, `build.gradle`, `build.xml`, and the README Version badge use the same string.
 - This folder is not a git repository. No origin URL is recorded.
 - Host packages and link modules are owned by `requirement-cpp-dependencies.md`.
 
@@ -70,7 +70,7 @@ This workspace is a software product people install and run: a console program. 
 | Kebab-case and camel-case | `requirement-cpp-coding-style.md` |
 | C++ link and apt dependencies | `requirement-cpp-dependencies.md` |
 | Flags and environment variables | `requirement-cpp-parameters.md` |
-| `./build.sh` binary path `target/exe/debug/cpp-logger` | this file |
+| Debug binary and payload download copy | `requirement-cpp-debug-binary.md` |
 | Ant `build.xml` | `requirement-cpp-ant.md` |
 | Ant comment banners, verb names, and the project-name spelling | `requirement-cpp-ant-coding-style.md` |
 | Gradle `build.gradle` | `requirement-cpp-gradle.md` |

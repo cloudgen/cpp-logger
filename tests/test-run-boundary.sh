@@ -38,7 +38,7 @@ g++ -std=c++17 -Wall -Wextra -Werror \
 bin="${work}/cpp-logger"
 
 about_out=$(env -u HOME -u PREFIX "${bin}" about)
-printf '%s\n' "${about_out}" | grep -F 'cpp-logger 1.2.0' >/dev/null
+printf '%s\n' "${about_out}" | grep -F 'cpp-logger 1.2.1' >/dev/null
 printf '%s\n' "${about_out}" | grep -F 'No database. No configuration file.' >/dev/null
 if [ -d /tmp/.app/cpp-logger ]; then
     echo "[ERROR] about created a log directory"
@@ -71,8 +71,8 @@ if printf '%s\n' "${plain_out}" | grep -F '] @main :]' >/dev/null; then
 fi
 
 verbose_out=$(env -u HOME -u PREFIX "${bin}" --verbose)
-printf '%s\n' "${verbose_out}" | grep -F '] @main :] Starting cpp-logger 1.2.0' >/dev/null
-printf '%s\n' "${verbose_out}" | grep -F '] @main :] Finished cpp-logger 1.2.0' >/dev/null
+printf '%s\n' "${verbose_out}" | grep -F '] @main :] Starting cpp-logger 1.2.1' >/dev/null
+printf '%s\n' "${verbose_out}" | grep -F '] @main :] Finished cpp-logger 1.2.1' >/dev/null
 if printf '%s\n' "${verbose_out}" | grep -F 'component main start' >/dev/null; then
     echo "[ERROR] component start was logged without debug mode"
     exit 1
@@ -82,8 +82,8 @@ debug_out=$(env -u HOME -u PREFIX "${bin}" --debug)
 printf '%s\n' "${debug_out}" | grep -F '] @main :] switch --debug' >/dev/null
 printf '%s\n' "${debug_out}" | grep -F '] @main :] component main start' >/dev/null
 printf '%s\n' "${debug_out}" | grep -F '] @main :] component main end' >/dev/null
-printf '%s\n' "${debug_out}" | grep -F '] @main :] Starting cpp-logger 1.2.0' >/dev/null
-printf '%s\n' "${debug_out}" | grep -F '] @main :] Finished cpp-logger 1.2.0' >/dev/null
+printf '%s\n' "${debug_out}" | grep -F '] @main :] Starting cpp-logger 1.2.1' >/dev/null
+printf '%s\n' "${debug_out}" | grep -F '] @main :] Finished cpp-logger 1.2.1' >/dev/null
 if printf '%s\n' "${debug_out}" | grep -F 'switch --quiet' >/dev/null; then
     echo "[ERROR] a switch that was not passed was logged"
     exit 1
@@ -103,7 +103,7 @@ fi
 
 one_out=$(env -u HOME -u PREFIX DEBUG=1 "${bin}")
 printf '%s\n' "${one_out}" | grep -F '] @main :] component main start' >/dev/null
-printf '%s\n' "${one_out}" | grep -F '] @main :] Starting cpp-logger 1.2.0' >/dev/null
+printf '%s\n' "${one_out}" | grep -F '] @main :] Starting cpp-logger 1.2.1' >/dev/null
 if printf '%s\n' "${one_out}" | grep -F 'switch --debug' >/dev/null; then
     echo "[ERROR] DEBUG=1 logged a switch that was not passed"
     exit 1

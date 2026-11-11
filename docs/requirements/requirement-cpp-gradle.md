@@ -1,6 +1,6 @@
 **file**: docs/requirements/requirement-cpp-gradle.md
 **Status**: Active
-**Updated**: 2026-11-10
+**Updated**: 2026-11-11
 **Philosophy**: CIAO v2.10.2 / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
 
 ## 1. Purpose
@@ -9,7 +9,7 @@ This file owns Gradle host, flags, pkg-config, the debug path, the `run` depende
 
 ### 1.1 Human-facing
 
-**In one sentence:** Gradle reads the project name from `project.ini`, compiles C++17 on Linux (glibc, uClibc, or musl), and writes `target/exe/debug/cpp-logger`.
+**In one sentence:** Gradle reads the project name from `project.ini`, compiles C++17 on Linux (glibc, uClibc, or musl), and writes the debug binary from `requirement-cpp-debug-binary.md`.
 
 | Box | Meaning | Example |
 |-----|---------|---------|
@@ -25,7 +25,7 @@ This file owns Gradle host, flags, pkg-config, the debug path, the `run` depende
 |---------|---------------|----------|
 | `project.ini` | `PRJ` | The project name Gradle uses |
 | `build.gradle` | Compile, link, and `run` | The Linux binary and the Windows and macOS host gates |
-| `target/exe/debug/` | `cpp-logger` | The debug executable |
+| `target/exe/debug/` | `cpp-logger` | The debug executable. The copy is `download/cpp-logger` |
 
 | You do… | What it means | What you type |
 |---------|---------------|---------------|
@@ -38,14 +38,14 @@ This file owns Gradle host, flags, pkg-config, the debug path, the `run` depende
 2. The Gradle target hosts are Windows, macOS, and Linux. A Linux target uses one libc family: glibc, uClibc, or musl. `os.name` containing `windows` selects Windows. `os.name` containing `mac` selects macOS. Every other `os.name` selects Linux. On Linux the script records `glibc`, `uclibc`, or `musl`. glibc, uClibc, and musl all run the Linux compile. The script does not reject uClibc or musl. Windows selects `buildWindows`. macOS selects `buildMac`.
 3. On Linux, pkg-config is two commands. The module list is the table in `requirement-cpp-dependencies.md` (`glib-2.0`). The calls are `pkg-config --cflags` and `pkg-config --libs`. Compile receives the `--cflags` tokens. Link receives the `--libs` tokens. The script keeps every token from those two calls.
 4. On Linux, each `CppCompile` task adds `-std=c++17`, `-Wall`, `-Wextra`, `-g`, and `-O2`. The language level matches `requirement-class-software-dev.md`. The script uses `-std=c++17` for that compile.
-5. On Linux, the debug link writes `target/exe/debug/${PRJ}`. `PRJ` is the name from rule 1. `linkDebug` records that file. That path is the same file `./build.sh` writes. The link line also adds `-pthread`, as `requirement-cpp-dependencies.md` requires.
-6. On Windows, the script skips `pkg-config`, and the `CppCompile` and `LinkExecutable` tasks do not run. `assemble` depends on `buildWindows`. `buildWindows` writes `target/exe/debug/${PRJ}`. It skips `pkg-config` and skips `gtk+-3.0` and `webkit2gtk-4.1`. On macOS, the script skips `pkg-config`, and those same compile and link tasks do not run. `assemble` depends on `buildMac`. `buildMac` writes `target/exe/debug/${PRJ}`. It skips `pkg-config` and skips `gtk+-3.0` and `webkit2gtk-4.1`.
-7. The `run` task depends on `assemble` on Windows, on macOS, and on Linux for glibc, uClibc, and musl. Its executable is `target/exe/debug/${PRJ}`. `gradle assemble` still only builds.
+5. On Linux, the debug link writes the debug binary from `requirement-cpp-debug-binary.md` and copies those bytes to the payload download file from that same requirement. `PRJ` is the name from rule 1. `linkDebug` records that file. `./build.sh` writes that same file. The link line also adds `-pthread`, as `requirement-cpp-dependencies.md` requires.
+6. On Windows, the script skips `pkg-config`, and the `CppCompile` and `LinkExecutable` tasks do not run. `assemble` depends on `buildWindows`. `buildWindows` names the Windows debug file and the download file from `requirement-cpp-debug-binary.md` and does not write them. It skips `pkg-config` and skips `gtk+-3.0` and `webkit2gtk-4.1`. On macOS, the script skips `pkg-config`, and those same compile and link tasks do not run. `assemble` depends on `buildMac`. `buildMac` names the macOS debug file and the download file from `requirement-cpp-debug-binary.md` and does not write them. It skips `pkg-config` and skips `gtk+-3.0` and `webkit2gtk-4.1`.
+7. The `run` task depends on `assemble` on Windows, on macOS, and on Linux for glibc, uClibc, and musl. Its executable is the debug binary from `requirement-cpp-debug-binary.md`. `gradle assemble` still only builds.
 8. `installDependencies` generates `project.sh` only when that file is absent. The generated file starts with `#!/bin/sh`, and the task runs it with `sh`. That interpreter is `requirement-cpp-build-sh.md`. It exports both `SRC_C` and `SRC_CPP`. Both values are `$SRC/main/cpp`, because `requirement-cpp-folder.md` names that directory as the only ship-unit source root. The generated file also exports `PRJ` from rule 1. An existing `project.sh` stays as it is.
 
 ### 2.1 Implementation notes (this project)
 
-`project.ini` sets `PRJ=cpp-logger`. The Linux debug binary is `target/exe/debug/cpp-logger`.
+`project.ini` sets `PRJ=cpp-logger`. The Linux debug binary is `target/exe/debug/cpp-logger`. The payload download file is `download/cpp-logger`. Windows appends `.exe` to both names. Those paths are `requirement-cpp-debug-binary.md`.
 
 Generated exports, when `project.sh` is absent:
 
@@ -72,7 +72,7 @@ export SRC_CPP=$SRC/main/cpp
 
 | TP-ID | Pass |
 |-------|------|
-| TP-CPP-GRADLE | `build.gradle` loads `PRJ` from `project.ini` and the fallback is `cpp-logger`. The host gate is Windows, macOS, or Linux with glibc, uClibc, or musl. Linux calls `pkg-config --cflags` and `pkg-config --libs` as separate commands for `glib-2.0` and does not request `gtk+-3.0` or `webkit2gtk-4.1`. `CppCompile` adds `-std=c++17 -Wall -Wextra -g -O2`. `linkDebug` writes `target/exe/debug/${PRJ}`. `run` depends on `assemble`. The generator exports `SRC_C` and `SRC_CPP`, both `$SRC/main/cpp` |
+| TP-CPP-GRADLE | `build.gradle` loads `PRJ` from `project.ini` and the fallback is `cpp-logger`. The host gate is Windows, macOS, or Linux with glibc, uClibc, or musl. Linux calls `pkg-config --cflags` and `pkg-config --libs` as separate commands for `glib-2.0` and does not request `gtk+-3.0` or `webkit2gtk-4.1`. `CppCompile` adds `-std=c++17 -Wall -Wextra -g -O2`. `linkDebug` writes the debug binary from `requirement-cpp-debug-binary.md` and copies it to `download/`. On Windows the file name ends in `.exe`. `run` depends on `assemble`. The generator exports `SRC_C` and `SRC_CPP`, both `$SRC/main/cpp` |
 
 ### Design-time verification
 
