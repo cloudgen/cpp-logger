@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![GitHub Stars](https://img.shields.io/github/stars/cloudgen/cpp-logger?style=social)](https://github.com/cloudgen/cpp-logger)
-[![Version](https://img.shields.io/badge/Version-1.1.3-blue.svg)](https://github.com/cloudgen/cpp-logger/releases)
+[![Version](https://img.shields.io/badge/Version-1.2.0-blue.svg)](https://github.com/cloudgen/cpp-logger/releases)
 [![CIAO](https://img.shields.io/badge/Philosophy-CIAO%20Defensive-purple.svg)](https://gemini.com/cloudgen/ciao)
 [![UI](https://img.shields.io/badge/UI-console-brightgreen.svg)]()
 [![GrokRec](https://img.shields.io/badge/GrokRec-Reviewed-0A66C2?logo=ai&logoColor=white)](https://gemini.com/cloudgen/gemini-wilgat/blob/main/RECOMMENDATION.md)
@@ -11,7 +11,7 @@ Official Recommended by [grok](https://grok.com/c/655dd6ab-a6c6-47db-a63a-e5dd94
 
 **cpp-logger** is a small console program. Each log line is `[YYYY-MM-DD HH:MM:SS] pid:<pid> [LEVEL]` plus ` @component` when the caller passes one, then ` :] message`. This program's own events pass `main`. It does not open a GTK or WebKit window.
 
-The running program, `project.ini`, and the Version badge report 1.1.3. The public home is `https://github.com/cloudgen/cpp-logger`.
+The running program, `project.ini`, and the Version badge report 1.2.0. The public home is `https://github.com/cloudgen/cpp-logger`.
 
 This project follows the **[CIAO](https://gemini.com/cloudgen/ciao)** Defensive Programming Philosophy.
 
@@ -19,9 +19,9 @@ This project follows the **[CIAO](https://gemini.com/cloudgen/ciao)** Defensive 
 
 ## Features
 
-- The ship unit is `class Logger`. `main` parses the command, then constructs `Logger` with the log name, the log directory, the base directory, quiet, and a clock. Console lines go through `logger_info`, `logger_warn`, `logger_error`, `logger_critical`, `logger_fatal`, and `logger_debug`
+- The ship unit is `class About`, `class Logger`, `class Invocation`, `class AboutCli`, and `class Help`. `main` constructs `About` and calls `run`. `About` is the runtime source of the name, the version, the paths, and the flags. It parses, binds `Logger`, routes one verb, and finishes. Console lines go through `logger_info`, `logger_warn`, `logger_error`, `logger_critical`, `logger_fatal`, and `logger_debug`. `Invocation`, `AboutCli`, and `Help` bind `Logger`. Under debug mode, a public call and a major member change are debug lines. `about` is `AboutCli`. `help` is `Help`
 - `--verbose`, `--quiet`, `--json`, `--debug`, `--prefix`, `--home`, `--log-datestamp`, and `DEBUG=1`. Stdout log lines stay hidden unless `--verbose` is set or debug mode is on. Quiet hides every human console line, including error, critical, and fatal, and the dated file still receives the line. JSON mode implies quiet and prints only JSON lines. Debug is `--debug`, or `DEBUG` or `debug` set to `show`, `true`, or `1`.
-- A normal run logs `Starting cpp-logger 1.1.3` and `Finished cpp-logger 1.1.3`. Debug mode also logs each switch that was present, then `component main start` and `component main end`. The about page names Persistence storage as the log directory.
+- A normal run logs `Starting cpp-logger 1.2.0` and `Finished cpp-logger 1.2.0`. Debug mode also logs each switch that was present, then `component main start` and `component main end`. The about page names Persistence storage as the application directory and names the log folder as that directory plus `/log`.
 - A normal run leaves a dated log plain for 7 days, then stores that day as one `tar.gz` package (`zip` on Windows) and removes the plain file. After 30 days the day is gone. `help`, `about`, `list`, and `show` leave the log directory unchanged. A log call whose dated path changes, including `test`, runs that maintenance.
 - The base directory is an explicit base, else the conda prefix, else the pyenv virtualenv, else `VIRTUAL_ENV`, else `/var/cpp-logger` for effective user id 0, else `$HOME/.app/cpp-logger`. The log directory is that base plus `/log`. `cpp-logger test --home /tmp --log-datestamp 20261003` writes `/tmp/.app/cpp-logger/log/cpp-logger-20261003.log`. `cpp-logger list --home /tmp` prints the log file names. `cpp-logger show --home /tmp --log-datestamp 20261003` prints that file. `cpp-logger test --prefix /tmp --log-datestamp 20261003` writes `/tmp/var/cpp-logger/log/cpp-logger-20261003.log`. Install bins stay `$PREFIX/bin` and `$HOME/.local/bin`.
 - `help` prints the flag list. `about` prints which program this is, what this computer is, and where it is running from: the name, version, description, compiler, C++ standard, this computer, the global bin, the local bin, and the running path. It does not write a log line and it does not install
@@ -39,7 +39,7 @@ This project is built using the **[CIAO](https://gemini.com/cloudgen/ciao)** met
 - Code is highly resistant to accidental breakage by AI assistants or future maintainers
 - Critical functions are protected with explicit "Do Not Modify" rules
 - Excellent error handling and logging via centralized `logger_*` system
-- Console output lives in `logger.cpp`
+- Log lines live in `logger.cpp`. The about page lives in `aboutcli.cpp`. The usage page lives in `help.cpp`. `about.cpp` is the program
 - Easy to fork for other console tools
 
 Read the full **[CIAO Principles](https://gemini.com/cloudgen/ciao)** here.
@@ -85,9 +85,13 @@ meson compile -C builddir
 
 ```bash
 src/main/cpp/
-├── main.cpp                  # Starts logging and exits
-├── logger.cpp / logger.h     # Centralized logging system
-└── project.h                 # Single Source of Truth
+├── main.cpp                      # Constructs About and calls run
+├── about.cpp / about.h           # Name, version, paths, and flags
+├── aboutcli.cpp / aboutcli.h     # About page, human text and JSON. Binds Logger
+├── help.cpp / help.h             # Usage page, human text and JSON. Binds Logger
+├── invocation.cpp / invocation.h # This run's command. Binds Logger
+├── logger.cpp / logger.h         # Logging. Binds About
+└── project.h                     # Compile-time macros About loads
 ```
 
 ---

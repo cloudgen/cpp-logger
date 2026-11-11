@@ -25,9 +25,17 @@ fi
 g++ -std=c++17 -Wall -Wextra -Werror $(pkg-config --cflags glib-2.0) \
     -c src/main/cpp/logger.cpp -o "${work}/logger.o"
 g++ -std=c++17 -Wall -Wextra -Werror $(pkg-config --cflags glib-2.0) \
+    -c src/main/cpp/about.cpp -o "${work}/about.o"
+g++ -std=c++17 -Wall -Wextra -Werror $(pkg-config --cflags glib-2.0) \
+    -c src/main/cpp/aboutcli.cpp -o "${work}/aboutcli.o"
+g++ -std=c++17 -Wall -Wextra -Werror $(pkg-config --cflags glib-2.0) \
+    -c src/main/cpp/help.cpp -o "${work}/help.o"
+g++ -std=c++17 -Wall -Wextra -Werror $(pkg-config --cflags glib-2.0) \
+    -c src/main/cpp/invocation.cpp -o "${work}/invocation.o"
+g++ -std=c++17 -Wall -Wextra -Werror $(pkg-config --cflags glib-2.0) \
     -c src/main/cpp/main.cpp -o "${work}/main.o"
 g++ -std=c++17 -Wall -Wextra -Werror \
-    -o "${bin}" "${work}/main.o" "${work}/logger.o" \
+    -o "${bin}" "${work}/main.o" "${work}/logger.o" "${work}/about.o" "${work}/aboutcli.o" "${work}/help.o" "${work}/invocation.o" \
     $(pkg-config --libs glib-2.0) -pthread
 
 if [ "$(id -u)" -eq 0 ]; then
@@ -47,7 +55,7 @@ need_line() {
     fi
 }
 
-need_line "cpp-logger 1.1.3"
+need_line "cpp-logger 1.2.0"
 need_line "Console logger. Lines follow ChronicleLogger."
 need_line "Domain: No database. No configuration file."
 need_line "Runtime tools: none"
@@ -72,6 +80,7 @@ need_line "    Cache folder (preferred): ${preferred}"
 need_line "    Cache folder (1st fallback): "
 need_line "    Cache folder (2nd fallback): "
 need_line "    Persistence storage: "
+need_line "    Log folder: "
 need_line "    TTY / Interactive: no"
 
 os_name=$(uname -s)
@@ -90,7 +99,7 @@ esac
 
 global_bin=/usr/local/bin/cpp-logger
 if [ -f "${global_bin}" ] && [ -x "${global_bin}" ]; then
-    global_value=1.1.3
+    global_value=1.2.0
 else
     global_value="not found"
 fi
@@ -99,7 +108,7 @@ need_line "    Global install (${global_bin}): ${global_value}"
 need_line "    Local install: not found"
 need_line "    Running from: ${running_from}"
 
-if ! printf '%s\n' "${about_out}" | grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\.000000 cpp-logger\(v1\.1\.3\)  \[CHECK SYSTEM\]:$' >/dev/null; then
+if ! printf '%s\n' "${about_out}" | grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\.000000 cpp-logger\(v1\.2\.0\)  \[CHECK SYSTEM\]:$' >/dev/null; then
     echo "[ERROR] host-check header"
     exit 1
 fi
@@ -131,7 +140,8 @@ printf '%s\n' "${about_out}" | awk '
         want[11] = "Cache folder (1st fallback)"
         want[12] = "Cache folder (2nd fallback)"
         want[13] = "Persistence storage"
-        want[14] = "TTY / Interactive"
+        want[14] = "Log folder"
+        want[15] = "TTY / Interactive"
     }
     NR == 6 && $0 != "" { print "[ERROR] blank line missing after identity"; exit 1 }
     NR == 6 { blank = 1; next }
@@ -147,14 +157,14 @@ printf '%s\n' "${about_out}" | awk '
         n++
         next
     }
-    header && sep == 0 && n == 15 && $0 == "" { sep = 1; next }
+    header && sep == 0 && n == 16 && $0 == "" { sep = 1; next }
     header && sep == 1 && install == 0 && $0 == "Install location" { install = 1; next }
     header && install == 1 && g == 0 && $0 ~ /^    Global install / { g = 1; next }
     header && g == 1 && l == 0 && $0 ~ /^    Local install/ { l = 1; next }
     header && l == 1 && r == 0 && $0 ~ /^    Running from: / { r = 1; next }
     header && r == 1 && $0 != "" { print "[ERROR] trailing line: " $0; exit 1 }
     END {
-        if (!blank || !header || n != 15 || !sep || !install || !g || !l || !r) {
+        if (!blank || !header || n != 16 || !sep || !install || !g || !l || !r) {
             print "[ERROR] page blocks are incomplete"
             exit 1
         }
@@ -207,7 +217,7 @@ page_json() {
     fi
     printf '%s\n' "${mode_out}" | grep -F '"command":"about"' >/dev/null
     printf '%s\n' "${mode_out}" | grep -F '"name":"cpp-logger"' >/dev/null
-    printf '%s\n' "${mode_out}" | grep -F '"version":"1.1.3"' >/dev/null
+    printf '%s\n' "${mode_out}" | grep -F '"version":"1.2.0"' >/dev/null
     printf '%s\n' "${mode_out}" | grep -F '"cpp_standard":"C++17"' >/dev/null
     printf '%s\n' "${mode_out}" | grep -F '"runtime_tools":"none"' >/dev/null
     printf '%s\n' "${mode_out}" | grep -F '"domain":"No database. No configuration file."' >/dev/null
@@ -215,6 +225,7 @@ page_json() {
     printf '%s\n' "${mode_out}" | grep -F '"cache_folder_1st_fallback":""' >/dev/null
     printf '%s\n' "${mode_out}" | grep -F '"cache_folder_2nd_fallback":""' >/dev/null
     printf '%s\n' "${mode_out}" | grep -F '"persistence_storage":""' >/dev/null
+    printf '%s\n' "${mode_out}" | grep -F '"log_folder":""' >/dev/null
     printf '%s\n' "${mode_out}" | grep -F '"local":"not found"' >/dev/null
     printf '%s\n' "${mode_out}" | grep -F '"global_path":"/usr/local/bin/cpp-logger"' >/dev/null
     if printf '%s\n' "${mode_out}" | grep -F '[CHECK SYSTEM]' >/dev/null; then
@@ -238,8 +249,12 @@ venv_out=$(env -u HOME -u PREFIX -u CONDA_PREFIX -u CONDA_DEFAULT_ENV -u PYENV_V
     echo "[ERROR] virtualenv about exited non-zero"
     exit 1
 }
-if ! printf '%s\n' "${venv_out}" | grep -F -x "    Persistence storage: ${venv}/.app/cpp-logger/log" >/dev/null; then
-    echo "[ERROR] persistence storage is not the log folder"
+if ! printf '%s\n' "${venv_out}" | grep -F -x "    Persistence storage: ${venv}/.app/cpp-logger" >/dev/null; then
+    echo "[ERROR] persistence storage is not the application directory"
+    exit 1
+fi
+if ! printf '%s\n' "${venv_out}" | grep -F -x "    Log folder: ${venv}/.app/cpp-logger/log" >/dev/null; then
+    echo "[ERROR] log folder is not persistence storage plus /log"
     exit 1
 fi
 if [ -e "${venv}" ]; then
@@ -251,8 +266,12 @@ venv_json=$(env -u HOME -u PREFIX -u CONDA_PREFIX -u CONDA_DEFAULT_ENV -u PYENV_
     echo "[ERROR] virtualenv about JSON exited non-zero"
     exit 1
 }
-if ! printf '%s\n' "${venv_json}" | grep -F "\"persistence_storage\":\"${venv}/.app/cpp-logger/log\"" >/dev/null; then
-    echo "[ERROR] JSON persistence storage is not the log folder"
+if ! printf '%s\n' "${venv_json}" | grep -F "\"persistence_storage\":\"${venv}/.app/cpp-logger\"" >/dev/null; then
+    echo "[ERROR] JSON persistence storage is not the application directory"
+    exit 1
+fi
+if ! printf '%s\n' "${venv_json}" | grep -F "\"log_folder\":\"${venv}/.app/cpp-logger/log\"" >/dev/null; then
+    echo "[ERROR] JSON log folder is not persistence storage plus /log"
     exit 1
 fi
 if [ -e "${venv}" ]; then

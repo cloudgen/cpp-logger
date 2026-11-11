@@ -47,9 +47,9 @@ This file owns `meson.build`. It follows the host set, the C and C++ flags, the 
 
 `project.ini` sets `PRJ=cpp-logger`. The Linux debug binary is `target/exe/debug/cpp-logger`.
 
-The ship-unit files are `src/main/cpp/logger.cpp` and `src/main/cpp/main.cpp`. Both take the C++17 options in rule 4. `requirement-cpp-folder.md` names no `.c` file. A `.c` file that is present under `src/main/c` or `src/main/cpp` joins that same link on the C11 option.
+The ship-unit translation units are `src/main/cpp/main.cpp`, `src/main/cpp/about.cpp`, `src/main/cpp/aboutcli.cpp`, `src/main/cpp/help.cpp`, `src/main/cpp/invocation.cpp`, and `src/main/cpp/logger.cpp`. Each takes the C++17 options in rule 4. `meson.build` collects every `.cpp` file under `src/main/cpp`. `requirement-cpp-folder.md` names no `.c` file. A `.c` file that is present under `src/main/c` or `src/main/cpp` joins that same link on the C11 option.
 
-`project()` `version` is `1.1.3`, the same string as `project.ini` `VERSION` and `src/main/cpp/project.h`.
+`project()` `version` is `1.2.0`, the same string as `project.ini` `VERSION` and `src/main/cpp/project.h`.
 
 Generated exports, when `project.sh` is absent:
 

@@ -47,6 +47,24 @@ if grep -F "/var/cache/${name}" src/main/cpp/logger.cpp >/dev/null; then
     echo "[ERROR] a cache path hard-codes /var/cache/${name}"
     exit 1
 fi
+for unit in src/main/cpp/logger.cpp src/main/cpp/about.cpp src/main/cpp/aboutcli.cpp src/main/cpp/help.cpp src/main/cpp/invocation.cpp; do
+    if grep -F "/var/${name}" "$unit" >/dev/null; then
+        echo "[ERROR] ${unit} hard-codes /var/${name}"
+        exit 1
+    fi
+    if grep -F ".app/${name}" "$unit" >/dev/null; then
+        echo "[ERROR] ${unit} hard-codes .app/${name}"
+        exit 1
+    fi
+    if grep -F "cache-${name}" "$unit" >/dev/null; then
+        echo "[ERROR] ${unit} hard-codes cache-${name}"
+        exit 1
+    fi
+    if grep -F "/var/cache/${name}" "$unit" >/dev/null; then
+        echo "[ERROR] ${unit} hard-codes /var/cache/${name}"
+        exit 1
+    fi
+done
 
 work=/tmp/cpp-logger-portable-work
 home_log="/tmp/.app/${name}/log/${name}-20261003.log"
@@ -57,9 +75,17 @@ mkdir "${work}"
 g++ -std=c++17 -Wall -Wextra -Werror $(pkg-config --cflags glib-2.0) \
     -c src/main/cpp/logger.cpp -o "${work}/logger.o"
 g++ -std=c++17 -Wall -Wextra -Werror $(pkg-config --cflags glib-2.0) \
+    -c src/main/cpp/about.cpp -o "${work}/about.o"
+g++ -std=c++17 -Wall -Wextra -Werror $(pkg-config --cflags glib-2.0) \
+    -c src/main/cpp/aboutcli.cpp -o "${work}/aboutcli.o"
+g++ -std=c++17 -Wall -Wextra -Werror $(pkg-config --cflags glib-2.0) \
+    -c src/main/cpp/help.cpp -o "${work}/help.o"
+g++ -std=c++17 -Wall -Wextra -Werror $(pkg-config --cflags glib-2.0) \
+    -c src/main/cpp/invocation.cpp -o "${work}/invocation.o"
+g++ -std=c++17 -Wall -Wextra -Werror $(pkg-config --cflags glib-2.0) \
     -c src/main/cpp/main.cpp -o "${work}/main.o"
 g++ -std=c++17 -Wall -Wextra -Werror \
-    -o "${work}/cpp-logger" "${work}/main.o" "${work}/logger.o" \
+    -o "${work}/cpp-logger" "${work}/main.o" "${work}/logger.o" "${work}/about.o" "${work}/aboutcli.o" "${work}/help.o" "${work}/invocation.o" \
     $(pkg-config --libs glib-2.0) -pthread
 
 bin="${work}/cpp-logger"

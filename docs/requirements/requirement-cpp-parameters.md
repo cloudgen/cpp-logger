@@ -1,11 +1,11 @@
 **file**: docs/requirements/requirement-cpp-parameters.md
 **Status**: Active
-**Updated**: 2026-11-10
+**Updated**: 2026-11-11
 **Philosophy**: CIAO v2.10.2 / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
 
 ## 1. Purpose
 
-This file owns every command-line flag and environment variable the binary accepts. `logger_print_help()` must list each of them.
+This file owns every command-line flag and environment variable the binary accepts. `Help::printPage()` lists each of them. `Logger::logger_print_help()` forwards to that page.
 
 ### 1.1 Human-facing
 
@@ -14,7 +14,7 @@ This file owns every command-line flag and environment variable the binary accep
 | Box | Meaning | Example |
 |-----|---------|---------|
 | You / this login | The person who starts the program | You pass `--quiet` |
-| The other role | `logger_parse_invocation`, then the `Logger` constructor | The parse reads argv and the environment first |
+| The other role | `About::parse`, then `About` routes one verb | The parse stores argv and the environment on `About` |
 | Not this file | What a log line looks like | `requirement-cpp-logger.md` |
 
 | Includes | Excludes |
@@ -35,7 +35,7 @@ This file owns every command-line flag and environment variable the binary accep
 
 On a normal run the effective user selects cpp-base-path. `test`, `list`, and `show` do not read `PREFIX`, `HOME`, or the effective user id.
 
-`logger_print_help()` lists every row in both tables, and it lists the two environments. `help` as an argument prints that text and exits 0.
+`Help::printPage()` lists every row in both tables, and it lists the two environments. `help` as an argument prints that text and exits 0. The page reads the program name from `About`.
 
 | Parameter | Meaning |
 |-----------|---------|
@@ -63,53 +63,57 @@ There is no `--shutdown`, no `--bookmark`, no `--config`, and no `SHUTDOWN` or `
 
 One invocation accepts one of `test`, `list`, or `show`. A second one exits 1 with `one test purpose command`.
 
-`main` calls `logger_parse_invocation`, then constructs `Logger`. `JSON=1` is read before the scan. `help` and `about` run after the scan, so `--json` after the verb is the same mode as `--json` before it. The C name `logger_output_init` forwards to the constructed object and does not parse again.
+`About::parse` reads argv and the environment and stores them on `About`. `JSON=1` is read before the scan. The scan resets the flags and reads the environment again, so a value set for this process is still seen. `help` and `about` are stored during the scan and run after it, so `--json` after the verb is the same mode as `--json` before it. The scan does not exit 0 for `help` or `about`. `About::run` prints the page and returns 0. The C name `logger_output_init` forwards to the constructed logger and does not parse again.
 
 ### Sample code (this project)
 
-From `src/main/cpp/logger.cpp`.
+From `src/main/cpp/about.cpp`. The scan stores the page. It does not print help inside the scan.
 
 ```cpp
-void Logger::logger_set_purpose(int purpose)
+void About::setPurpose(int next)
 {
-    if (logger_purpose != 0) {
-        g_printerr("one test purpose command\n");
-        exit(1);
+    if (purpose != 0 || page != 0) {
+        die("one test purpose command");
     }
-    logger_purpose = purpose;
+    purpose = next;
 }
 ```
 
 ```cpp
         if (strcmp(argv[i], "--quiet") == 0) {
-            logger_set_quiet(true);
+            sawQuiet = 1;
+            quietMode = true;
         } else if (strcmp(argv[i], "--json") == 0) {
-            logger_json_mode = true;
+            sawJson = 1;
+            jsonMode = true;
         } else if (strcmp(argv[i], "--debug") == 0) {
-            debug_env_enabled = true;
+            sawDebug = 1;
+            debugEnabled = true;
         } else if (strcmp(argv[i], "--verbose") == 0) {
-            logger_verbose = 1;
+            sawVerbose = 1;
+            verbose = 1;
         } else if (strcmp(argv[i], "--prefix") == 0) {
-            logger_prefix_arg = logger_take_value(argc, argv, &i, "--prefix");
+            prefix = takeValue(argc, argv, &i, "--prefix");
         } else if (strcmp(argv[i], "--home") == 0) {
-            logger_home_arg = logger_take_value(argc, argv, &i, "--home");
+            home = takeValue(argc, argv, &i, "--home");
         } else if (strcmp(argv[i], "--log-datestamp") == 0) {
-            logger_datestamp_arg = logger_take_value(argc, argv, &i, "--log-datestamp");
+            datestamp = takeValue(argc, argv, &i, "--log-datestamp");
         } else if (strcmp(argv[i], "test") == 0) {
-            logger_set_purpose(1);
+            setPurpose(1);
         } else if (strcmp(argv[i], "list") == 0) {
-            logger_set_purpose(2);
+            setPurpose(2);
         } else if (strcmp(argv[i], "show") == 0) {
-            logger_set_purpose(3);
+            setPurpose(3);
         } else if (strcmp(argv[i], "help") == 0) {
-            logger_print_help();
-            exit(0);
+            setPage(1);
+        } else if (strcmp(argv[i], "about") == 0) {
+            setPage(2);
         }
 ```
 
 ## 3. Protection rule
 
-Future editors must not add a flag in `logger.cpp` without adding the same flag to this table and to `logger_print_help()` in the same change. Quiet after startup is `logger_set_quiet`, owned by `requirement-cpp-output.md`. JSON mode is owned by `requirement-cpp-json.md`. Debug after startup is `logger_get_debug`, owned by `requirement-cpp-debug-mode.md`. cpp-base-path and cpp-log-path are owned by `requirement-cpp-logger-folder.md`. The dated file is owned by `requirement-cpp-logger.md`. The test command check is owned by `requirement-cpp-tests.md`.
+Future editors must not add a flag in `About::parse` without adding the same flag to this table and to `Help::printPage()` in the same change. Quiet after startup is `logger_set_quiet`, owned by `requirement-cpp-output.md`. JSON mode is owned by `requirement-cpp-json.md`. Debug after startup is `logger_get_debug`, owned by `requirement-cpp-debug-mode.md`. cpp-base-path and cpp-log-path are owned by `requirement-cpp-logger-folder.md`. The dated file is owned by `requirement-cpp-logger.md`. The test command check is owned by `requirement-cpp-tests.md`.
 
 ## 4. Related artifacts
 
@@ -124,8 +128,9 @@ Future editors must not add a flag in `logger.cpp` without adding the same flag 
 | cpp-test-purpose-command | The verbs `test`, `list`, and `show` |
 | cpp-test-purpose-switch | `--prefix`, `--home`, `--debug`, `--log-datestamp` |
 | `docs/requirements/requirement-cpp-tests.md` | The `test` verb |
-| `src/main/cpp/logger.cpp` | Parser and help text |
+| `src/main/cpp/about.cpp` | `About::parse` stores the flags and the command |
+| `src/main/cpp/help.cpp` | The usage page |
 | `docs/requirements/requirement-cpp-about.md` | The about page |
 
-**Last updated**: 2026-11-10
+**Last updated**: 2026-11-11
 **Owner**: Parameters

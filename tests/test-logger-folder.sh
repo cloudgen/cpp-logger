@@ -31,9 +31,17 @@ mkdir "${work}"
 g++ -std=c++17 -Wall -Wextra -Werror $(pkg-config --cflags glib-2.0) \
     -c src/main/cpp/logger.cpp -o "${work}/logger.o"
 g++ -std=c++17 -Wall -Wextra -Werror $(pkg-config --cflags glib-2.0) \
+    -c src/main/cpp/about.cpp -o "${work}/about.o"
+g++ -std=c++17 -Wall -Wextra -Werror $(pkg-config --cflags glib-2.0) \
+    -c src/main/cpp/aboutcli.cpp -o "${work}/aboutcli.o"
+g++ -std=c++17 -Wall -Wextra -Werror $(pkg-config --cflags glib-2.0) \
+    -c src/main/cpp/help.cpp -o "${work}/help.o"
+g++ -std=c++17 -Wall -Wextra -Werror $(pkg-config --cflags glib-2.0) \
+    -c src/main/cpp/invocation.cpp -o "${work}/invocation.o"
+g++ -std=c++17 -Wall -Wextra -Werror $(pkg-config --cflags glib-2.0) \
     -c src/main/cpp/main.cpp -o "${work}/main.o"
 g++ -std=c++17 -Wall -Wextra -Werror \
-    -o "${work}/cpp-logger" "${work}/main.o" "${work}/logger.o" \
+    -o "${work}/cpp-logger" "${work}/main.o" "${work}/logger.o" "${work}/about.o" "${work}/aboutcli.o" "${work}/help.o" "${work}/invocation.o" \
     $(pkg-config --libs glib-2.0) -pthread
 
 bin="${work}/cpp-logger"

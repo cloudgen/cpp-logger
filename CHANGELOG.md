@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-11-11
+
+### Added
+- `class Invocation` keeps the page, the purpose, and completion. `Invocation`, `AboutCli`, and `Help` each bind `Logger`. Under debug mode, a public call and a major member change are debug lines.
+
+### Changed
+- `help`, `about`, `list`, and `show` keep a debug line on the console and do not create a log directory. JSON or quiet on those commands leaves the console free of that line. JSON on those commands stays one object.
+- `About` is the runtime source of the name, the version, the paths, and the flags. `Logger` binds that object. `main` constructs `About` and calls `run`. The about page is `AboutCli`. It prints the application directory as Persistence storage and that directory plus `/log` as the log folder. It does not print the log-directory return and it does not create either directory.
+- GNU Make compiles every `.cpp` file in `src/main/cpp`.
+- `project.h`, `project.ini`, `meson.build`, `build.gradle`, `build.xml`, and the README Version badge say 1.2.0.
+
 ## [1.1.3] - 2026-11-11
 
 ### Changed

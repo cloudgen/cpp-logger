@@ -1,6 +1,6 @@
 #!/bin/sh
 # TP-CPP-OOP
-# Reads logger.h, logger.cpp, and main.cpp.
+# Reads logger.h, logger.cpp, about.h, about.cpp, and main.cpp.
 # Compiles those units, the retain driver, and the format driver.
 # Does not call mktemp. Does not read, assign, or delete HOME.
 # Objects stay under /tmp/cpp-logger-oop-work. Cleanup deletes that directory.
@@ -33,23 +33,27 @@ forbid() {
 
 header=src/main/cpp/logger.h
 body=src/main/cpp/logger.cpp
+about_header=src/main/cpp/about.h
+about_body=src/main/cpp/about.cpp
 entry=src/main/cpp/main.cpp
 
 need TP-CPP-OOP "$header" 'class Logger'
 need TP-CPP-OOP "$header" 'static Logger *logger_active;'
-need TP-CPP-OOP "$header" 'Logger(const char *logname, const char *logdir, const char *basedir, bool is_quiet, LoggerClock clock);'
+need TP-CPP-OOP "$header" 'Logger(About &about, LoggerClock clock);'
 need TP-CPP-OOP "$header" 'static gint logger_filename_cmp'
 need TP-CPP-OOP "$header" 'LOGGER_LEVEL_CRITICAL'
-need TP-CPP-OOP "$entry" 'Logger logger(PROJECT_NAME, logdir, basedir, quiet, NULL);'
-need TP-CPP-OOP "$entry" 'logger_parse_invocation(argc, argv, &logdir, &basedir, &quiet);'
-need TP-CPP-OOP "$body" 'Logger::Logger(const char *logname, const char *logdir, const char *basedir, bool is_quiet, LoggerClock clock)'
+need TP-CPP-OOP "$entry" 'About about;'
+need TP-CPP-OOP "$entry" 'return about.run(argc, argv);'
+need TP-CPP-OOP "$body" 'Logger::Logger(About &about, LoggerClock clock)'
 forbid TP-CPP-OOP "$header" 'Logger(int argc, char **argv)'
+forbid TP-CPP-OOP "$header" 'Logger(const char *logname, const char *logdir, const char *basedir, bool is_quiet, LoggerClock clock);'
 forbid TP-CPP-OOP "$entry" 'Logger logger(argc, argv)'
 forbid TP-CPP-OOP "$body" 'Logger::Logger(int argc, char **argv)'
 need TP-CPP-OOP "$body" 'Logger *Logger::logger_active = NULL;'
 need TP-CPP-OOP "$body" 'logger_active = this;'
 need TP-CPP-OOP "$body" 'cold.logger_maintain_directory'
-need TP-CPP-OOP "$body" 'Logger cold("", NULL, NULL, false, NULL);'
+need TP-CPP-OOP "$body" 'coldAbout.setName("");'
+need TP-CPP-OOP "$body" 'Logger cold(coldAbout, NULL);'
 need TP-CPP-OOP "$body" 'va_copy(ap_copy, ap);'
 forbid TP-CPP-OOP "$entry" 'logger_output_init'
 forbid TP-CPP-OOP "$body" 'static bool logger_quiet_mode'
@@ -60,6 +64,38 @@ if [ "$classes" -ne 1 ]; then
     echo "[FAIL] TP-CPP-OOP expected one class in ${header}, found ${classes}"
     fail=1
 fi
+
+need TP-CPP-OOP "$about_header" 'class About'
+about_classes=$(grep -c '^class ' "$about_header" || true)
+if [ "$about_classes" -ne 1 ]; then
+    echo "[FAIL] TP-CPP-OOP expected one class in ${about_header}, found ${about_classes}"
+    fail=1
+fi
+need TP-CPP-OOP "$about_body" 'About::parse'
+need TP-CPP-OOP "$about_body" 'About::run'
+need TP-CPP-OOP src/main/cpp/aboutcli.h 'class AboutCli'
+need TP-CPP-OOP src/main/cpp/aboutcli.cpp 'AboutCli::bind'
+need TP-CPP-OOP src/main/cpp/aboutcli.cpp 'AboutCli::printPage'
+need TP-CPP-OOP src/main/cpp/aboutcli.cpp 'AboutCli::persistenceFolder'
+need TP-CPP-OOP src/main/cpp/aboutcli.cpp 'AboutCli::logFolder'
+need TP-CPP-OOP src/main/cpp/help.h 'class Help'
+need TP-CPP-OOP src/main/cpp/help.cpp 'Help::bind'
+need TP-CPP-OOP src/main/cpp/help.cpp 'Help::printPage'
+need TP-CPP-OOP src/main/cpp/invocation.h 'class Invocation'
+need TP-CPP-OOP src/main/cpp/invocation.cpp 'Invocation::bind'
+need TP-CPP-OOP src/main/cpp/invocation.cpp 'Invocation::takeCommand'
+need TP-CPP-OOP src/main/cpp/invocation.cpp 'Invocation::markComplete'
+inv_classes=$(grep -Ec '^class[[:space:]]+[A-Za-z0-9_]+[[:space:]]*\{' src/main/cpp/invocation.h || true)
+if [ "$inv_classes" -ne 1 ]; then
+    echo "[FAIL] TP-CPP-OOP expected one class in src/main/cpp/invocation.h, found ${inv_classes}"
+    fail=1
+fi
+need TP-CPP-OOP "$body" 'AboutCli page'
+forbid TP-CPP-OOP src/main/cpp/aboutcli.cpp 'logger_persistence_storage'
+forbid TP-CPP-OOP "$header" '    void logger_print_about(void);'
+forbid TP-CPP-OOP "$body" 'Logger::logger_print_about'
+forbid TP-CPP-OOP "$body" 'Logger::logger_about_copy'
+forbid TP-CPP-OOP "$body" 'Logger::logger_about_probe'
 
 if grep -E '^[[:space:]]*(class|struct|enum|union|typedef)[[:space:]]' "$entry" >/dev/null; then
     echo "[FAIL] TP-CPP-OOP ${entry} declares a second type"
@@ -72,21 +108,25 @@ if grep -nE 'new[[:space:]]+Logger|return[[:space:]]+Logger[[:space:]]*[;(]' "$h
 fi
 
 for name in \
-    logger_quiet_mode logger_json_mode debug_env_enabled logger_verbose \
-    logger_folder logger_log_path logger_purpose logger_prefix_arg \
-    logger_home_arg logger_datestamp_arg logger_saw_quiet logger_saw_json \
-    logger_saw_debug logger_saw_verbose logger_pending_page \
+    logger_folder logger_log_path \
     logger_retention_done logger_maintain_busy \
-    logger_name logger_old_log_path logger_clock
+    logger_name logger_old_log_path logger_clock bound
 do
     need TP-CPP-OOP "$header" "$name"
 done
 
 for name in \
+    quietMode jsonMode debugEnabled verbose purpose prefix home datestamp \
+    sawQuiet sawJson sawDebug sawVerbose page reader
+do
+    need TP-CPP-OOP "$about_header" "$name"
+done
+
+for name in \
     logger_is_test_verb logger_set_quiet logger_get_quiet logger_get_debug \
-    logger_persistence_storage \
+    logger_get_json logger_persistence_storage \
     logger_log logger_info logger_warn logger_error logger_fatal logger_debug \
-    logger_maintain_directory logger_print_help logger_print_about \
+    logger_maintain_directory logger_print_help \
     logger_json_escape logger_command_name logger_die logger_join_base \
     logger_datestamp_ok logger_apply_base logger_set_purpose logger_list_emit \
     logger_filename_cmp logger_list_log_files logger_show_log_file \
@@ -94,15 +134,15 @@ for name in \
     logger_stderr_level logger_emit_chronicle logger_unlink_regular \
     logger_retention_join logger_stamp_to_date logger_retention_stamp \
     logger_spawn_ok logger_compress_day logger_maintain_one logger_maintain_body \
-    logger_append_log_file logger_about_copy logger_about_probe \
-    logger_finish_command logger_critical logger_store_name
+    logger_append_log_file \
+    logger_finish_command logger_critical logger_store_name logger_record_debug
 do
     need TP-CPP-OOP "$body" "Logger::${name}"
 done
 
 for name in \
     logger_log logger_is_test_verb logger_set_quiet logger_get_quiet \
-    logger_get_debug logger_persistence_storage logger_print_help logger_print_about \
+    logger_get_debug logger_get_json logger_persistence_storage logger_print_help \
     logger_maintain_directory
 do
     need TP-CPP-OOP "$body" "logger_active->${name}"
@@ -116,11 +156,19 @@ done
 
 work=/tmp/cpp-logger-oop-work
 absent=/tmp/cpp-logger-oop-absent
-rm -rf "${work}" "${absent}"
+rm -rf "${work}" "${absent}" /tmp/cpp-logger-oop-loggable
 mkdir -p "${work}"
 
 g++ -std=c++17 -Wall -Wextra -Werror $(pkg-config --cflags glib-2.0) \
     -c src/main/cpp/logger.cpp -o "${work}/logger.o"
+g++ -std=c++17 -Wall -Wextra -Werror $(pkg-config --cflags glib-2.0) \
+    -c src/main/cpp/about.cpp -o "${work}/about.o"
+g++ -std=c++17 -Wall -Wextra -Werror $(pkg-config --cflags glib-2.0) \
+    -c src/main/cpp/aboutcli.cpp -o "${work}/aboutcli.o"
+g++ -std=c++17 -Wall -Wextra -Werror $(pkg-config --cflags glib-2.0) \
+    -c src/main/cpp/help.cpp -o "${work}/help.o"
+g++ -std=c++17 -Wall -Wextra -Werror $(pkg-config --cflags glib-2.0) \
+    -c src/main/cpp/invocation.cpp -o "${work}/invocation.o"
 g++ -std=c++17 -Wall -Wextra -Werror $(pkg-config --cflags glib-2.0) \
     -c src/main/cpp/main.cpp -o "${work}/main.o"
 g++ -std=c++17 -Wall -Wextra -Werror $(pkg-config --cflags glib-2.0) \
@@ -128,14 +176,63 @@ g++ -std=c++17 -Wall -Wextra -Werror $(pkg-config --cflags glib-2.0) \
 g++ -std=c++17 -Wall -Wextra -Werror $(pkg-config --cflags glib-2.0) \
     -I src/main/cpp -c tests/cpp-logger-format-driver.cpp -o "${work}/format.o"
 g++ -std=c++17 -Wall -Wextra -Werror \
-    -o "${work}/cpp-logger" "${work}/main.o" "${work}/logger.o" \
+    -o "${work}/cpp-logger" "${work}/main.o" "${work}/logger.o" "${work}/about.o" "${work}/aboutcli.o" "${work}/help.o" "${work}/invocation.o" \
     $(pkg-config --libs glib-2.0) -pthread
 g++ -std=c++17 -Wall -Wextra -Werror \
-    -o "${work}/retain-driver" "${work}/driver.o" "${work}/logger.o" \
+    -o "${work}/retain-driver" "${work}/driver.o" "${work}/logger.o" "${work}/about.o" "${work}/aboutcli.o" "${work}/help.o" "${work}/invocation.o" \
     $(pkg-config --libs glib-2.0) -pthread
 g++ -std=c++17 -Wall -Wextra -Werror \
-    -o "${work}/format-driver" "${work}/format.o" "${work}/logger.o" \
+    -o "${work}/format-driver" "${work}/format.o" "${work}/logger.o" "${work}/about.o" "${work}/aboutcli.o" "${work}/help.o" "${work}/invocation.o" \
     $(pkg-config --libs glib-2.0) -pthread
+
+loggable_home=/tmp/cpp-logger-oop-loggable
+rm -rf "${loggable_home}"
+loggable_out=$(env -u HOME -u PREFIX "${work}/cpp-logger" help --debug)
+for token in \
+    'Invocation::bind' 'Invocation bound' 'Invocation page 1' \
+    'Help::bind' 'Help bound' 'Help::printPage' \
+    'Invocation::markComplete' 'Invocation complete' 'Usage: '
+do
+    if ! printf '%s\n' "${loggable_out}" | grep -F -- "${token}" >/dev/null; then
+        echo "[FAIL] TP-CPP-OOP help --debug missing ${token}"
+        fail=1
+    fi
+done
+if printf '%s\n' "${loggable_out}" | grep -F 'Created directory' >/dev/null; then
+    echo "[FAIL] TP-CPP-OOP help --debug created a directory"
+    fail=1
+fi
+json_help=$(env -u HOME -u PREFIX "${work}/cpp-logger" help --json --debug)
+json_lines=$(printf '%s\n' "${json_help}" | grep -c .)
+if [ "${json_lines}" -ne 1 ] || ! printf '%s\n' "${json_help}" | grep -F '"command":"help"' >/dev/null; then
+    echo "[FAIL] TP-CPP-OOP help --json --debug was not one object"
+    fail=1
+fi
+if printf '%s\n' "${json_help}" | grep -F 'Help::' >/dev/null; then
+    echo "[FAIL] TP-CPP-OOP help --json --debug added a loggable line"
+    fail=1
+fi
+about_out=$(env -u HOME -u PREFIX "${work}/cpp-logger" about --debug)
+for token in 'AboutCli::bind' 'AboutCli bound' 'AboutCli::printPage' 'Invocation page 2'; do
+    if ! printf '%s\n' "${about_out}" | grep -F -- "${token}" >/dev/null; then
+        echo "[FAIL] TP-CPP-OOP about --debug missing ${token}"
+        fail=1
+    fi
+done
+list_out=$(env -u HOME -u PREFIX "${work}/cpp-logger" list --home "${loggable_home}" --debug)
+if ! printf '%s\n' "${list_out}" | grep -F 'Invocation purpose 2' >/dev/null; then
+    echo "[FAIL] TP-CPP-OOP list --debug missing the purpose record"
+    fail=1
+fi
+if [ -e "${loggable_home}/.app" ]; then
+    echo "[FAIL] TP-CPP-OOP list --debug created the log directory"
+    fail=1
+fi
+plain_help=$(env -u HOME -u PREFIX "${work}/cpp-logger" help)
+if printf '%s\n' "${plain_help}" | grep -F 'Help::bind' >/dev/null; then
+    echo "[FAIL] TP-CPP-OOP help recorded a debug line with debug off"
+    fail=1
+fi
 
 cold_out=$("${work}/retain-driver" "${absent}" name.log 20261110 2>&1) || {
     echo "[FAIL] TP-CPP-OOP unbound maintain exited non-zero"
@@ -326,7 +423,7 @@ elif ! grep -F '[1970-01-01 00:00:00] pid:' "${fail_file}" >/dev/null || ! grep 
 fi
 
 rm -rf "${work}" "${absent}" "${empty_dir}" "${lines_dir}" "${quiet_dir}" "${fail_dir}" \
-    "${errors_dir}" "${jsonerr_dir}" "${token_dir}"
+    "${errors_dir}" "${jsonerr_dir}" "${token_dir}" "${loggable_home}"
 
 if [ "$fail" -ne 0 ]; then
     exit 1

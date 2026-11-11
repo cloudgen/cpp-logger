@@ -9,7 +9,7 @@ This file owns the logger calls, the human line, and the dated file that stores 
 
 ### 1.1 Human-facing
 
-**In one sentence:** The logger is constructed with a name, two optional directories, quiet, and a clock, and each message uses `[YYYY-MM-DD HH:MM:SS] pid:<pid> [LEVEL]` plus an optional ` @component`, then ` :] message`.
+**In one sentence:** The logger binds the program and a clock, and each message uses `[YYYY-MM-DD HH:MM:SS] pid:<pid> [LEVEL]` plus an optional ` @component`, then ` :] message`.
 
 | Box | Meaning | Example |
 |-----|---------|---------|
@@ -40,7 +40,7 @@ This file owns the logger calls, the human line, and the dated file that stores 
 
 ### 2.0 Initialization
 
-The logger object is constructed with five arguments: the log name, an optional log directory, an optional base directory, a quiet flag, and an optional clock. This is the same construction order as ChronicleLogger `__init__(logname, logdir, basedir, is_quiet, time_provider)`.
+The logger object is constructed as `Logger(About &about, LoggerClock clock)`. `About` supplies the log name, an optional log directory, an optional base directory, and quiet. The clock is the second argument. Those five facts keep the ChronicleLogger order `__init__(logname, logdir, basedir, is_quiet, time_provider)`. The name, the directories, and quiet live on `About`. The clock stays on `Logger`.
 
 1. An empty log name returns immediately. Construction does not create a directory and does not write a file.
 2. Store the name. A name that contains an internal capital letter is rewritten to kebab-case. `cpp-logger` has no internal capital and stays `cpp-logger`.
@@ -49,13 +49,13 @@ The logger object is constructed with five arguments: the log name, an optional 
 5. The current file is `<log-directory>/<name>-<YYYYMMDD>.log`. The date comes from the clock argument. A null clock uses local time. Clock failure uses `19700101`.
 6. Create the log directory when it is missing. A successful create prints `Created directory: <path>` unless quiet is set.
 7. When that file can be opened for append, write one newline and close the file. A permission failure does not abort construction. This newline is not a formatted log line.
-8. `main` parses `argc` and `argv`. That parse is not this constructor. `main` then constructs `Logger` with the five arguments. `--prefix` and `--home` on `test`, `list`, and `show` supply an explicit directory and stay `requirement-cpp-logger-folder.md`.
+8. `About` parses `argc` and `argv`. That parse is not this constructor. `About` constructs `Logger` with the bound program and the clock when the verb records a line. `help` and `about` do not construct `Logger`. `--prefix` and `--home` on `test`, `list`, and `show` supply an explicit directory and stay `requirement-cpp-logger-folder.md`.
 
-The 1.1.3 source constructs `Logger` with the log name, the log directory, the base directory, quiet, and the clock. An empty name returns before a directory is created. Construction does not emit `cpp-logger Output System initialized`. `main` calls `logger_parse_invocation` and then that constructor.
+The 1.2.0 source constructs `Logger` with `About` and the clock. The name, the log directory, the base directory, and quiet are read from that `About`. An empty name returns before a directory is created. Construction does not emit `cpp-logger Output System initialized`. `main` constructs `About` and calls `run`. It does not call `logger_parse_invocation`.
 - The translation unit is `src/main/cpp/logger.cpp`. The header is `src/main/cpp/logger.h`. There is no `logger.c`, no `output.c`, and no `output.h`.
 - `logger_log` takes `va_list` by value. It uses `va_copy` before `g_strdup_vprintf`. The signature does not go back to `...`.
 - `logger_debug` is enabled by `--debug`, or by `DEBUG` or `debug` set to `show`, `true`, or `1`. That predicate is `requirement-cpp-debug-mode.md`. There is no `logger_set_debug`.
-- `logger_persistence_storage()` returns the log directory from steps 3 and 4, or an empty string when that directory is unresolved. The read does not create the directory. The about page prints that return.
+- `logger_persistence_storage()` returns the log directory from steps 3 and 4, or an empty string when that directory is unresolved. The read does not create the directory. The about page does not print that return. Persistence storage on that page is the application directory. The log folder is that directory plus `/log`.
 
 ### 2.1 Logger format
 
@@ -90,7 +90,7 @@ Quiet and JSON do not change this shape. They choose whether this line is the on
 
 ### 2.1.1 Run boundary
 
-A normal run appends `Starting cpp-logger <major>.<minor>.<patch>` and then `Finished cpp-logger <major>.<minor>.<patch>`. The numbers are `VERSION_MAJOR`, `VERSION_MINOR`, and `VERSION_PATCH` in `src/main/cpp/project.h`. Both lines are `INFO`. `help`, `about`, `list`, `show`, and `test` do not emit that pair.
+A normal run appends `Starting cpp-logger <major>.<minor>.<patch>` and then `Finished cpp-logger <major>.<minor>.<patch>`. The numbers are the version `About` loaded from `VERSION_MAJOR`, `VERSION_MINOR`, and `VERSION_PATCH` in `src/main/cpp/project.h`. Both lines are `INFO`. `About` finishes the run. `help`, `about`, `list`, `show`, and `test` do not emit that pair. `Logger` does not choose the verb.
 
 When debug mode is on, the same runs that reach the logger also append `component main start` and `component main end` as `DEBUG`, and one `DEBUG` line for each switch that was present. Those lines are `requirement-cpp-debug-mode.md`. Construction does not emit `cpp-logger Output System initialized`. The construction write is the single newline in §2.0.
 
@@ -116,7 +116,7 @@ The file is `cpp-logger-<YYYYMMDD>.log` inside cpp-log-path, or inside cpp-test-
 
 ### Sample code (this project)
 
-The blocks below are the 1.1.3 source. The caller passes the component. The enumeration includes `LOGGER_LEVEL_CRITICAL`. Construction is the five-argument form. Quiet, streams, and `--verbose` are `requirement-cpp-output.md`. The JSON object is `requirement-cpp-json.md`. The directories are `requirement-cpp-logger-folder.md`.
+The blocks below are the 1.2.0 source. The caller passes the component. The enumeration includes `LOGGER_LEVEL_CRITICAL`. Construction is `Logger(About &about, LoggerClock clock)`. Quiet, streams, and `--verbose` are `requirement-cpp-output.md`. The JSON object is `requirement-cpp-json.md`. The directories are `requirement-cpp-logger-folder.md`.
 
 ```cpp
 const char *Logger::logger_level_name(LoggerOutputLevel level)
@@ -338,7 +338,7 @@ void Logger::logger_show_log_file(void)
 
 ## 3. Protection rule
 
-Future editors must not add a second logging API, change the §2.1 line, drop `CRITICAL` from the enumeration, hard-wire `@main` inside the writer, replace §2.0 with `Logger(int argc, char **argv)`, add `logger_set_debug`, put the date in another shape, write the file outside the log directory, or create a temporary file to hold the log.
+Future editors must not add a second logging API, change the §2.1 line, drop `CRITICAL` from the enumeration, hard-wire `@main` inside the writer, replace §2.0 with `Logger(int argc, char **argv)`, copy the name, the paths, and the flags onto `Logger` beside `About`, add `logger_set_debug`, put the date in another shape, write the file outside the log directory, or create a temporary file to hold the log.
 
 ## 4. Related artifacts
 
@@ -362,6 +362,8 @@ Future editors must not add a second logging API, change the §2.1 line, drop `C
 | 2026-11-11 | Active | §2.0 is the ChronicleLogger constructor order. §2.1 is the six-level `log_message` line, with an enumeration for the level and an optional component. The 1.1.1 source still uses `Logger(int argc, char **argv)`, omits `CRITICAL`, and always writes `@main`. |
 | 2026-11-11 | Active | Release 1.1.2 constructs `Logger` with the five arguments, includes `LOGGER_LEVEL_CRITICAL`, and writes `@component` only when the caller passes one. |
 | 2026-11-11 | Active | Release 1.1.3 hides every human console line while quiet, accepts debug values `show`, `true`, and `1`, and returns the log directory from `logger_persistence_storage`. |
+| 2026-11-11 | Active | `Logger` binds `About`. The name, the directories, and quiet stay on `About`. The clock stays the second constructor argument. `Logger` does not choose the verb. |
+| 2026-11-11 | Active | Release 1.2.0 records a loggable debug line through `logger_record_debug`. A reader command keeps that line on the console and does not create a directory. |
 
 **Last updated**: 2026-11-11
 **Owner**: Logger

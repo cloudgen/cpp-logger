@@ -1,6 +1,6 @@
 **file**: docs/requirements/requirement-cpp-folder.md
 **Status**: Active
-**Updated**: 2026-11-10
+**Updated**: 2026-11-11
 **Philosophy**: CIAO v2.10.2 / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
 
 ## 1. Purpose
@@ -37,23 +37,39 @@ This file owns the ship-unit directory `src/main/cpp`. Coding style owns spellin
 3. A header named in §2.1 stays `.h`. Do not rename `logger.h` or `project.h` to `.hpp`.
 4. Shell scripts, Meson files, and Markdown do not go in this directory.
 5. `project.sh` sets `SRC_C` to `src/main/cpp`. `./build.sh`, `build.xml`, `build.gradle`, and `meson.build` compile the `.cpp` files there. `meson.build` lists the same translation units. A new translation unit is added to this file and to the Meson source list in the same change. An Ant-generated `project.sh` is `requirement-cpp-ant.md`. A Meson-generated `project.sh` is `requirement-cpp-meson.md`. Those generators do not replace this checked-in file and do not create `src/main/c`.
-6. A header and its translation unit stay paired. `project.h` holds identity macros only.
+6. A header and its translation unit stay paired. `project.h` holds the compile-time identity macros. `About` loads those macros and is the runtime source of the name, the version, the paths, and the flags.
 7. cpp-log-path is not a source directory. For root or sudo it is `/var/cpp-logger/log`. For every other user it is `$HOME/.app/cpp-logger/log`. The directory is `requirement-cpp-logger-folder.md`. The dated file in it is `requirement-cpp-logger.md`. Do not move `main.cpp` or `logger.cpp` into that directory.
 
 ### 2.1 Files in this directory
 
 | File | Role |
 |------|------|
-| `main.cpp` | Program entry |
-| `logger.cpp` | Logger implementation |
+| `main.cpp` | Entry. Constructs `About` and calls `run` |
+| `about.cpp` | `About`. Name, version, paths, and flags. Parse, bind, route, and finish |
+| `about.h` | `About` declarations |
+| `aboutcli.cpp` | About page. Human text and JSON. Binds `Logger` |
+| `aboutcli.h` | `AboutCli` declarations |
+| `help.cpp` | Usage page. Human text and JSON. Binds `Logger` |
+| `help.h` | `Help` declarations |
+| `invocation.cpp` | The command of this run. Binds `Logger` |
+| `invocation.h` | `Invocation` declarations |
+| `logger.cpp` | Logger implementation. Binds `About` |
 | `logger.h` | Logger declarations |
-| `project.h` | Runtime identity |
+| `project.h` | Compile-time identity macros |
 
 ### Sample (this project)
 
 ```text
 src/main/cpp/
   main.cpp
+  about.cpp
+  about.h
+  aboutcli.cpp
+  aboutcli.h
+  help.cpp
+  help.h
+  invocation.cpp
+  invocation.h
   logger.cpp
   logger.h
   project.h
@@ -81,5 +97,5 @@ Future editors must not recreate `src/main/c`, add a second ship-unit source roo
 | `docs/requirements/requirement-cpp-gradle.md` | Gradle compile of this directory |
 | `docs/requirements/requirement-cpp-meson.md` | Meson source list and the generated exports |
 
-**Last updated**: 2026-11-10
+**Last updated**: 2026-11-11
 **Owner**: C++ source folder

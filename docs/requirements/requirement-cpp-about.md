@@ -1,13 +1,13 @@
 **file**: docs/requirements/requirement-cpp-about.md
 **Status**: Active
-**Updated**: 2026-11-10
+**Updated**: 2026-11-11
 **Philosophy**: CIAO v2.10.2 / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
 
 ## 1. Purpose
 
 This file owns the `cpp-logger about` page. The page answers three live facts for this run: which program this is, what this computer is, and where the program is running from. The page is three blocks: identity, then the host check, then the install location. It reads the environment and path existence. It does not install. It does not start other programs to look the facts up.
 
-The host check is the quality-assurance record of this run: which compiler built the binary, which C++ standard it claims, and which machine is running it. The install-location block names the global bin, the local bin, and the path of this process. The host-check label order follows the HalloTui about page. This page has no star box and no text menu. The verb stays listed in `requirement-cpp-parameters.md`. Cache paths and persistence stay the directories in `requirement-cpp-logger-folder.md`. The install bins stay the paths in `requirement-cpp-global-installation.md` and `requirement-cpp-local-installation.md`. `logger_print_about()` in `src/main/cpp/logger.cpp` is the only builder.
+The host check is the quality-assurance record of this run: which compiler built the binary, which C++ standard it claims, and which machine is running it. The install-location block names the global bin, the local bin, and the path of this process. The host-check label order follows the HalloTui about page. This page has no star box and no text menu. The verb stays listed in `requirement-cpp-parameters.md`. Cache paths and persistence stay the directories in `requirement-cpp-logger-folder.md`. The install bins stay the paths in `requirement-cpp-global-installation.md` and `requirement-cpp-local-installation.md`. `class AboutCli` in `src/main/cpp/aboutcli.h` and `src/main/cpp/aboutcli.cpp` is the only builder of this page. It binds `Logger`. `About` owns the name, the version, the paths, and the flags. The page reads those facts from the `About` that logger holds. `logger_print_about()` constructs `AboutCli`. `Logger` does not own the page.
 
 ### 1.1 Human-facing
 
@@ -16,7 +16,7 @@ The host check is the quality-assurance record of this run: which compiler built
 | Box | Meaning | Example |
 |-----|---------|---------|
 | You / this login | The person reading the page | `cpp-logger about` |
-| The other role | `logger_print_about()` | It prints the three blocks and returns |
+| The other role | `class AboutCli` | It binds `Logger`, prints the three blocks, and returns |
 | Not this file | The flag list, the dated log line, and JSON log lines | `requirement-cpp-parameters.md`, `requirement-cpp-logger.md`, and `requirement-cpp-json.md` |
 
 | Includes | Excludes |
@@ -43,7 +43,7 @@ The host check is the quality-assurance record of this run: which compiler built
 
 ### 2.1 Identity
 
-4. The first five lines are, in order: `{APP_NAME} {version}`, `{PROJECT_DESCRIPTION}`, `Domain: No database. No configuration file.`, `Runtime tools: none`, `Entry points: {APP_NAME}`. `{APP_NAME}` is `PROJECT_NAME` in `src/main/cpp/project.h` (`cpp-logger`). `{version}` is `VERSION_MAJOR`, `VERSION_MINOR`, and `VERSION_PATCH` from that header, printed as `1.1.3`. `{PROJECT_DESCRIPTION}` is the `PROJECT_DESCRIPTION` macro. This file owns the domain sentence. The version digits stay in `project.h`.
+4. The first five lines are, in order: `{APP_NAME} {version}`, `{PROJECT_DESCRIPTION}`, `Domain: No database. No configuration file.`, `Runtime tools: none`, `Entry points: {APP_NAME}`. `{APP_NAME}` is `PROJECT_NAME` in `src/main/cpp/project.h` (`cpp-logger`). `{version}` is `VERSION_MAJOR`, `VERSION_MINOR`, and `VERSION_PATCH` from that header, printed as `1.2.0`. `{PROJECT_DESCRIPTION}` is the `PROJECT_DESCRIPTION` macro. This file owns the domain sentence. The version digits stay in `project.h`.
 5. The runtime-tools line stays `none`. The page does not name FFmpeg, GTK, or WebKit.
 
 ### 2.2 Host check
@@ -67,13 +67,14 @@ The host check is the quality-assurance record of this run: which compiler built
 | `Cache folder (preferred)` | Rule 9 |
 | `Cache folder (1st fallback)` | Rule 9 |
 | `Cache folder (2nd fallback)` | Empty. This product names no third cache directory. The line remains |
-| `Persistence storage` | Rule 9. This read does not create it |
+| `Persistence storage` | Rule 9. The application directory. This read does not create it |
+| `Log folder` | Rule 9. That directory plus `/log`. This read does not create it |
 | `TTY / Interactive` | `yes` when stdout is a terminal, otherwise `no` |
 
-9. **Cache and persistence.** These are the directories in `requirement-cpp-logger-folder.md`. The page reads them. It does not create them. Effective user id 0 is root or sudo. Every other user is the other environment.
-    - **Root or sudo.** Preferred and used are `/var/cache/cpp-logger`. Persistence is the log directory `/var/cpp-logger/log` when that directory is the one `logger_persistence_storage()` returns. The 1st fallback is empty.
-    - **Every other user.** Preferred is `/dev/shm/cache/cache-cpp-logger`. The 1st fallback is `$HOME/.cache/cache-cpp-logger` when `HOME` is set and non-empty, otherwise empty. Used is the preferred path when `/dev/shm` is a directory, otherwise the 1st fallback. Persistence is the log directory `$HOME/.app/cpp-logger/log` when `HOME` is set and non-empty and no earlier base was chosen. When `HOME` is missing or empty, and conda, pyenv, and `VIRTUAL_ENV` are unset, persistence is empty.
-    - **Resolved log directory.** `logger_persistence_storage()` returns the log directory from `requirement-cpp-logger-folder.md`, or an empty string when that directory is unresolved. An explicit log directory is that path. A conda prefix, a pyenv virtualenv, or `VIRTUAL_ENV` yields `<that-prefix>/.app/cpp-logger/log`. The page prints that return. It does not print the base directory without `/log`, and it does not print a cache path in this field. `about` does not apply `--home` or `--prefix`.
+9. **Cache, persistence, and the log folder.** Cache paths and the application directory are `requirement-cpp-logger-folder.md`. The page reads them. It does not create them. Effective user id 0 is root or sudo. Every other user is the other environment. Persistence storage is the application directory. The log folder is that directory plus `/log`. The page does not print the log folder as Persistence storage, and it does not print a cache path in either field.
+    - **Root or sudo.** Preferred and used are `/var/cache/cpp-logger`. Persistence storage is `/var/cpp-logger`. The log folder is `/var/cpp-logger/log`. The 1st fallback is empty.
+    - **Every other user.** Preferred is `/dev/shm/cache/cache-cpp-logger`. The 1st fallback is `$HOME/.cache/cache-cpp-logger` when `HOME` is set and non-empty, otherwise empty. Used is the preferred path when `/dev/shm` is a directory, otherwise the 1st fallback. Persistence storage is `$HOME/.app/cpp-logger` when `HOME` is set and non-empty and no earlier base was chosen. The log folder is that persistence directory plus `/log`. When `HOME` is missing or empty, and conda, pyenv, and `VIRTUAL_ENV` are unset, persistence storage and the log folder are both empty.
+    - **Resolved persistence.** `class AboutCli` resolves the application directory. The first match wins: the active conda prefix plus `/.app/cpp-logger`, else the active pyenv virtualenv plus `/.app/cpp-logger`, else `VIRTUAL_ENV` plus `/.app/cpp-logger`. When none of those is set, effective user id 0 uses `/var/cpp-logger` and every other user uses `$HOME/.app/cpp-logger` when `HOME` is set and non-empty. The page prints that directory as Persistence storage. When that directory is empty, the log folder line is empty. When it is not empty, the log folder is that directory plus `/log`. `about` does not apply `--home` or `--prefix`. It does not read `logger_persistence_storage()`. That function returns the log directory for the logger, which is a different fact.
     - **2nd fallback.** Empty on both environments. The leaf has no username and no process id.
 10. The page does not print `Python`, `C Library`, `Python Executable`, `python2 location`, `python3 location`, `conda location`, `pyenv location`, `Cython String`, or `Binary Type`. It does not spawn `python2`, `python3`, `conda`, `pyenv`, `g++`, or `id`. It does not print `You are using the GLOBAL INSTALLED version`, `You are using the LOCAL INSTALLED version`, or `You are using an UNINSTALLED version`. It does not print a Repository row or an Install channel row.
 
@@ -106,7 +107,7 @@ HalloTui prints a star box and classifies the path with three install-box senten
 Identity block this file owns:
 
 ```text
-cpp-logger 1.1.3
+cpp-logger 1.2.0
 Console logger. Lines follow ChronicleLogger.
 Domain: No database. No configuration file.
 Runtime tools: none
@@ -125,7 +126,7 @@ On Termux, Git Bash, Windows cmd, or the same class, the person runs `cpp-logger
 
 ## 3. Design principles (CIAO / CIAO-Lite)
 
-- **Caution:** The host lines are the reads in `logger_print_about()`. The page does not invent a Python interpreter.
+- **Caution:** The host lines are the reads in `AboutCli::printPage()`. The page does not invent a Python interpreter. Persistence storage and the log folder stay two lines.
 - **Intentional:** One page, three blocks, three live facts, one quality-assurance record.
 - **Anti-fragile:** A missing home leaves the home paths empty and the local probe `not found`. It does not create them.
 - **Over-protect:** No download command, no star box, no single installed banner, no `CheckSystem`.
@@ -134,7 +135,7 @@ On Termux, Git Bash, Windows cmd, or the same class, the person runs `cpp-logger
 
 | TP-ID | Pass |
 |-------|------|
-| TP-CPP-ABOUT | One binary. `about` prints the five identity lines, a blank line, the host-check labels in §2.2, a blank line, and the install-location lines in §2.3. The compiler line starts with `g++`. The standard line is `C++17`. The stamp ends `.000000` and two spaces sit before `[CHECK SYSTEM]:`. With `HOME` and `PREFIX` removed, the 1st fallback and persistence lines stay empty, the local probe is `Local install: not found`, and the global probe uses `/usr/local/bin/cpp-logger`. `Running from` is the running binary. With `VIRTUAL_ENV` set to `/tmp/cpp-logger-about-venv` and `HOME` removed, persistence is `/tmp/cpp-logger-about-venv/.app/cpp-logger/log` on the human page and in `persistence_storage`, and that directory is not created. The page contains no Python, conda, pyenv, star-box sentence, single installed banner, Repository row, or Install channel row. `--quiet about` still prints the host check and the install location. `--json about`, `about --json`, and `JSON=1 about` each print one JSON object and do not print the human page. The run creates no log directory and no cache directory |
+| TP-CPP-ABOUT | One binary. `about` prints the five identity lines, a blank line, the host-check labels in §2.2, a blank line, and the install-location lines in §2.3. The compiler line starts with `g++`. The standard line is `C++17`. The stamp ends `.000000` and two spaces sit before `[CHECK SYSTEM]:`. With `HOME` and `PREFIX` removed, the 1st fallback, persistence, and log-folder lines stay empty, the local probe is `Local install: not found`, and the global probe uses `/usr/local/bin/cpp-logger`. `Running from` is the running binary. With `VIRTUAL_ENV` set to `/tmp/cpp-logger-about-venv` and `HOME` removed, persistence is `/tmp/cpp-logger-about-venv/.app/cpp-logger` and the log folder is `/tmp/cpp-logger-about-venv/.app/cpp-logger/log` on the human page and in `persistence_storage` and `log_folder`, and that directory is not created. The page contains no Python, conda, pyenv, star-box sentence, single installed banner, Repository row, or Install channel row. `--quiet about` still prints the host check and the install location. `--json about`, `about --json`, and `JSON=1 about` each print one JSON object and do not print the human page. The run creates no log directory and no cache directory |
 
 ### Design-time verification
 
@@ -157,6 +158,7 @@ Future editors must not:
 6. Append a log line from `about`, or open the text menu from `about`.
 7. Replace the folder-law cache paths with a process-id leaf.
 8. Mark `TP-CPP-ABOUT` pass in `docs/reviews/test-plan.md` before `tests/test-cpp-about.sh` has exited 0.
+9. Print the log folder as Persistence storage, or leave the log folder off the page. Persistence storage is the application directory. The log folder is that directory plus `/log`.
 
 **Violating this rule is a critical structure regression.**
 
@@ -175,10 +177,13 @@ Future editors must not:
 | `docs/requirements/requirement-cpp-tests.md` | `TP-CPP-ABOUT` |
 | `docs/reviews/test-plan.md` | TP status |
 | `docs/reviews/requirement-test-matrix.md` | This requirement to TP-CPP-ABOUT |
-| `src/main/cpp/logger.cpp` | `logger_print_about()` |
-| `src/main/cpp/project.h` | Name, version, and description |
+| `src/main/cpp/aboutcli.h` | `class AboutCli` |
+| `src/main/cpp/aboutcli.cpp` | `AboutCli::printPage()` |
+| `src/main/cpp/about.h` | `class About`, the name, the version, the paths, and the flags the page reads |
+| `src/main/cpp/logger.cpp` | `logger_print_about()` constructs `AboutCli` and binds the logger |
+| `src/main/cpp/project.h` | Compile-time name, version, and description. `About` loads them |
 | `tests/test-cpp-about.sh` | The three-block suite |
 | `2026-11-10-checklist-cpp-about.md` | Filled run |
 
-**Last updated**: 2026-11-10
+**Last updated**: 2026-11-11
 **Owner**: About

@@ -5,69 +5,78 @@
 
 ## 1. Purpose
 
-This file owns the order of implementation for the ship unit. Object-oriented code comes first. A new behavior is a method on a class before it is a new free function. The conversion procedure collects the member variables and the possible member functions before any source move. The line text, the dated file, retention, JSON, and the about page stay on their own requirements. The ship unit is `class Logger`. `main` constructs it at the call site.
+This file owns the order of implementation for the ship unit. Object-oriented code comes first. A new behavior is a method on a class before it is a new free function. The conversion procedure collects the member variables and the possible member functions before any source move. The line text, the dated file, retention, JSON, and the about page stay on their own requirements. The ship unit is `class About`, `class Logger`, `class Invocation`, `class AboutCli`, and `class Help`. Each class has its own header and its own translation unit. `main` constructs `About` and calls `run`. `About` is the runtime source of the name, the version, the paths, and the flags. `Logger` binds that object. `Invocation`, `AboutCli`, and `Help` bind `Logger` and are loggable.
 
 ### 1.1 Human-facing
 
-**In one sentence:** You add a logging behavior as a method on the logger class, and `main` constructs that class at the call site.
+**In one sentence:** You add a logging behavior as a method on the logger class, and `main` constructs `About`, which binds that logger after the flags are known.
 
 | Box | Meaning | Example |
 |-----|---------|---------|
 | You / this login | The person who changes the ship unit | You add a method instead of a new free function |
-| The other role | The class | It owns quiet, the line, the dated file, list, and show |
+| The other role | `About`, then `Logger` | `About` owns the name, the version, the paths, and the flags. `Logger` records the line |
 | Not this file | The wording of a log line, the retention ages, and the about page | The logger, retention, JSON, and about requirements |
 
 | Includes | Excludes |
 |----------|----------|
-| The class map, the collected member variables, the collected possible member functions, the rule that a new behavior starts as a method, and the rule that `main` constructs the class at the call site | Line format, folder paths, retention ages, JSON shape, about-page text, and compile flags |
+| The class map, the collected member variables, the collected possible member functions, the rule that a new behavior starts as a method, and the rule that `main` constructs `About` at the call site | Line format, folder paths, retention ages, JSON shape, about-page text, and compile flags |
 
 | Surface | What you open | What for |
 |---------|---------------|----------|
 | `src/main/cpp/logger.h` | The class declaration | The type the rest of the program uses |
 | `src/main/cpp/logger.cpp` | The method bodies | The behavior those methods perform |
-| `src/main/cpp/main.cpp` | The entry | The one construction of the class |
+| `src/main/cpp/main.cpp` | The entry | The one construction of `About` |
 
 | You do… | What it means | What you type |
 |---------|---------------|---------------|
 | Add a logging behavior | The method exists on the class before any new free function | A method on `Logger` |
-| Start the program | `main` parses the command, then constructs the class with the log name, the directories, quiet, and the clock | `Logger logger(logname, logdir, basedir, is_quiet, clock);` |
+| Start the program | `main` constructs `About`. `About` parses, binds `Logger`, routes one verb, and finishes | `About about;` then `about.run(argc, argv)` |
 | Convert the present logger | Collect the members and the possible methods, then move that set | The tables in §2.3 |
+| Bind the logger | The logger reads the name, the paths, and the flags from `About` | `Logger logger(about, clock);` |
 
 ## 2. Core rules
 
 1. Object-oriented code is the first implementation shape. A new behavior of the program is a method on a class before it is a new free function. A coding-style note does not replace this file.
 2. The allowed end state is the class map in this file. A pile of free functions may be the present call surface. It is not the allowed end state.
-3. One class owns one job. A class with a single method is forbidden. The entry function stays in its own file. It constructs the class. It does not define that class's methods.
+3. One class owns one job. A class that owns one job keeps that job even when the class has one method. Folding a second job into a class that already owns a different job is forbidden. The entry function stays in its own file. It constructs the class. It does not define that class's methods.
 4. The site that needs the object writes the class name and constructs it there. A function or a method whose only job is to return a new object is not in the map. The class can be constructed without that helper.
 5. Line text, folder paths, retention, JSON, and the about page stay on the requirements that already own them. This file names the type. It does not copy those rules.
-6. The class stays in the source. `main` constructs it at the call site. Mark TP-CPP-OOP pass only after `tests/test-cpp-oop.sh` has exited 0 on that source.
+6. The classes stay in the source. `main` constructs `About` at the call site. Mark TP-CPP-OOP pass only after `tests/test-cpp-oop.sh` has exited 0 on that source.
 7. The conversion procedure collects the member variables and the possible member functions first. The move uses that collected set. A data member or a method outside the collection is not part of the move.
+8. When a conversion cannot finish in one pass, a function that still does more than one job is an intermediate step. The same record names each remaining job and the class that should own it. The next pass starts from that naming. A record that stops on the intermediate function and omits those classes is not finished.
 
 ### 2.1 Implementation notes (this project)
 
-The ship unit is `src/main/cpp/logger.h`, `src/main/cpp/logger.cpp`, `src/main/cpp/main.cpp`, and `src/main/cpp/project.h`. `logger.h` declares `class Logger`. The allowed constructor is the five-argument form in `requirement-cpp-logger.md` §2.0. `main.cpp` parses `argc` and `argv`, then constructs `Logger` with the log name, the log directory, the base directory, quiet, and the clock. It declares no second type. The `logger_*` names stay in `extern "C"` and forward to that object. The 1.1.3 source writes `Logger logger(PROJECT_NAME, logdir, basedir, quiet, NULL);`.
+The ship unit is `src/main/cpp/about.h`, `src/main/cpp/about.cpp`, `src/main/cpp/aboutcli.h`, `src/main/cpp/aboutcli.cpp`, `src/main/cpp/help.h`, `src/main/cpp/help.cpp`, `src/main/cpp/invocation.h`, `src/main/cpp/invocation.cpp`, `src/main/cpp/logger.h`, `src/main/cpp/logger.cpp`, `src/main/cpp/main.cpp`, and `src/main/cpp/project.h`. `about.h` declares `class About`. `aboutcli.h` declares `class AboutCli`. `help.h` declares `class Help`. `invocation.h` declares `class Invocation`. `logger.h` declares `class Logger`. `main.cpp` constructs `About` and calls `run`. It declares no second type. `About` loads the macros in `project.h` and is the runtime source of the name, the version, the paths, and the flags. It parses the flags, then the command. It constructs `Logger` after parse. A reader flag is already set, so `help`, `about`, `list`, and `show` do not create a directory. `Logger` records. It does not choose the verb and it does not exit the process for a successful reader verb. `Invocation`, `AboutCli`, and `Help` bind `Logger`. `AboutCli` and `Help` print. Under debug mode, a public call and a major member change are debug records. A reader record does not create a directory and does not run retention. The `logger_*` names stay in `extern "C"`. The logging names forward to `Logger`. `logger_print_about()` constructs `AboutCli` and binds that logger. The allowed `Logger` constructor is `Logger(About &about, LoggerClock clock)` in `requirement-cpp-logger.md` §2.0.
 
-The target type is `Logger`. The declaration lives in `logger.h`. The method bodies live in `logger.cpp`. `main.cpp` constructs it at the call site:
+The entry is:
 
 ```cpp
-Logger logger(logname, logdir, basedir, is_quiet, clock);
+About about;
+return about.run(argc, argv);
 ```
 
-The 1.1.3 call in this position is `Logger logger(PROJECT_NAME, logdir, basedir, quiet, NULL);`. The 1.1.1 call `Logger logger(argc, argv);` is the earlier record.
+The 1.1.1 call `Logger logger(argc, argv);` and the 1.1.2 call `Logger logger(PROJECT_NAME, logdir, basedir, quiet, NULL);` are earlier records. The current call is `Logger logger(about, clock);` after `About` has parsed.
 
 | Type | File | Job |
 |------|------|-----|
-| `Logger` | `logger.h`, `logger.cpp` | The members and the methods collected in §2.3. That set covers quiet, debug, JSON, the human line, the dated file, retention, `list`, `show`, and the host lines the about page already reads from this unit |
-| `main` | `main.cpp` | Constructs `Logger` and calls its methods. It does not declare a second type |
+| `About` | `about.h`, `about.cpp` | The name, the version, the paths, and the flags. Initialize, parse, bind `Logger`, route one verb, and finish. `main` does not declare this type |
+| `AboutCli` | `aboutcli.h`, `aboutcli.cpp` | The human about page and its JSON object. It binds `Logger`. Persistence storage is the application directory. The log folder is that directory plus `/log` |
+| `Help` | `help.h`, `help.cpp` | The human usage page and its JSON object. It binds `Logger` |
+| `Invocation` | `invocation.h`, `invocation.cpp` | The command of this run. Page, purpose, and complete. It binds `Logger` |
+| `Logger` | `logger.h`, `logger.cpp` | The human line, the dated file, retention, `list`, and `show`. It binds `About`. `logger_persistence_storage()` returns the log directory |
+| `main` | `main.cpp` | Constructs `About` and calls `run`. It does not declare a second type |
 
-`project.h` stays the name and version macros. It is not a class.
+`project.h` stays the compile-time macros. `About` loads them. `project.h` is not a class.
+
+`About::parse` reads the tokens and the values and stores them on `About`. `About::run` chooses the one verb. The path join for a test-purpose command stays on `requirement-cpp-logger-folder.md`.
 
 `logger_*` may remain only as forwarding wrappers after the implement order. A new behavior does not start as a new `logger_*` function. Spelling of a C linkage name stays in `requirement-cpp-coding-style.md`.
 
 ### 2.2 Why this requirement exists
 
 - **CIAO Principle 2** (https://github.com/cloudgen/ciao): the class job is named before the source moves.
-- **CIAO Principle 5** (https://github.com/cloudgen/ciao): one type owns output. The line, the path, and the about page do not grow a second owner here.
+- **CIAO Principle 5** (https://github.com/cloudgen/ciao): `About` owns the name, the version, the paths, and the flags. `AboutCli` owns the about page. `Help` owns the usage page. `Logger` owns the log line.
 
 ### 2.3 Conversion procedure
 
@@ -130,7 +139,8 @@ Public methods:
 | `logger_debug(const char *format, ...)` |
 | `logger_maintain_directory(const char *folder, const char *active_basename, const char *today_yyyymmdd)` |
 | `logger_print_help(void)` |
-| `logger_print_about(void)` |
+| `logger_get_json(void)` |
+| `logger_record_debug(const char *component, const char *message)` |
 
 Private methods:
 
@@ -161,16 +171,14 @@ Private methods:
 | `logger_maintain_one(const char *folder, const char *active_basename, const GDate *today, const char *stamp)` |
 | `logger_maintain_body(const char *folder, const char *active_basename, const char *today_yyyymmdd)` |
 | `logger_append_log_file(LoggerOutputLevel level, const char *message)` |
-| `logger_about_copy(char *out, size_t out_size, const char *value)` |
-| `logger_about_probe(char *out, size_t out_size, const char *path, const char *version)` |
 
 `logger_filename_cmp` is a private static method. `g_slist_insert_sorted` takes a function pointer with no object parameter.
 
-The collection is 1 constructor, 14 public methods, 26 private non-static methods, and 1 private static method. `logger_persistence_storage(void)` returns the log directory. A function added in `logger.cpp` after these tables is collected into the matching table in the same change. A new behavior after the move is a method on `Logger` first. That later method is not invented during this collection. `logger_critical` is required by `requirement-cpp-logger.md` and is not in the public-method table above. The constructor row is the 1.1.1 record. Step 4 is the allowed constructor.
+The collection is 1 constructor, 14 public methods, 24 private non-static methods, and 1 private static method. That count is the 1.1.1 procedure record. The live public table adds `logger_record_debug(const char *component, const char *message)` for a loggable debug line. `logger_get_json(void)` replaces `logger_print_about(void)` in the public table. The two about helpers left the private table. `logger_persistence_storage(void)` returns the log directory. A function added in `logger.cpp` after these tables is collected into the matching table in the same change. A new logging behavior after the move is a method on `Logger` first. The about page is `AboutCli::printPage`. The usage page is `Help::printPage`. `logger_critical` is required by `requirement-cpp-logger.md` and is not in the public-method table above. The constructor row in the table is the 1.1.1 record. The allowed constructor is `Logger(About &about, LoggerClock clock)`.
 
-3. **Declare the class.** `logger.h` declares `class Logger` with the collected members and the collected methods. `logger.cpp` holds the method bodies. The present `logger_*` names remain only as wrappers that forward to that object. Unbound `logger_maintain_directory` constructs `Logger cold(-1, NULL)` and calls the method on that object.
+3. **Declare the class.** `logger.h` declares `class Logger` with the collected members and the collected methods. `logger.cpp` holds the method bodies. The present `logger_*` names remain only as wrappers that forward to that object. Unbound `logger_maintain_directory` builds an `About` whose name is empty, constructs `Logger cold(coldAbout, NULL)`, and calls the method on that object. The empty name returns before a directory is created and does not store `logger_active`.
 
-4. **Construct at the entry.** `main.cpp` parses the command line, then writes the five-argument construction from `requirement-cpp-logger.md` §2.0. It declares no second type. It declares no function whose only job is to return a `Logger`. `Logger(int argc, char **argv)` is the 1.1.1 constructor. It is not this step.
+4. **Construct at the entry.** `main.cpp` constructs `About` and calls `run`. It declares no second type. It declares no function whose only job is to return a `Logger`. `Logger(int argc, char **argv)` is the 1.1.1 constructor. The five-argument form is the 1.1.2 constructor. The allowed constructor is `Logger(About &about, LoggerClock clock)`.
 
 5. **Leave the other product rules where they are.** Line text, folder paths, retention, JSON, and the about page stay on the requirements that already own them.
 
@@ -182,14 +190,14 @@ On Termux, Git Bash, Windows cmd, or the same class, the person runs the program
 
 - **Caution**: The present `logger_*` names forward to the object. The sentences, the exit codes, and `va_copy` stay.
 - **Intentional**: The class is the first place a new behavior is written.
-- **Anti-fragile**: `main` constructs `Logger` at the call site, so the type is visible in the entry.
+- **Anti-fragile**: `main` constructs `About` at the call site, so the program type is visible in the entry.
 - **Over-protect**: A helper whose only job is to construct `Logger` is not added.
 
 ## 4. Verification
 
 | TP-ID | Pass |
 |-------|------|
-| TP-CPP-OOP | `logger.h` declares `class Logger`. `main.cpp` constructs it with the five arguments in `requirement-cpp-logger.md` §2.0 and does not declare a second type. A function whose only job is to return a `Logger` is absent. The present `logger_*` names, if they remain, forward to that object. The 2026-11-10 run proved `Logger logger(argc, argv);` only. The 2026-11-11 run proves the five-argument constructor |
+| TP-CPP-OOP | `logger.h` declares `class Logger` once. `about.h` declares `class About` once. `aboutcli.h` declares `class AboutCli` once. `help.h` declares `class Help` once. `main.cpp` constructs `About` and calls `run`, and does not declare a second type. The allowed logger constructor is `Logger(About &about, LoggerClock clock)`. A function whose only job is to return a `Logger` is absent. The logging `logger_*` names forward to `Logger`. `logger_print_about()` constructs `AboutCli`. `invocation.h` declares `class Invocation` once. `Invocation`, `AboutCli`, and `Help` bind `Logger`. `AboutCli` prints the page. `Help` prints usage. Under debug mode, `help` records `Help::printPage` and does not create a directory. `help --json` with debug stays one object. The 2026-11-10 run proved `Logger logger(argc, argv);` only. The earlier 2026-11-11 run proved the five-argument constructor. The current run proves `About about;` and `return about.run(argc, argv);` |
 
 ### Design-time verification
 
@@ -200,11 +208,11 @@ On Termux, Git Bash, Windows cmd, or the same class, the person runs the program
 **Matrix:** `docs/reviews/requirement-test-matrix.md`
 **Map:** `docs/reviews/test-plan.md`
 
-The collection in §2.3 is the procedure record of the 1.1.1 move. On 2026-11-10 `tests/test-cpp-oop.sh` exited 0 for `Logger logger(argc, argv);`. That run does not prove the five-argument constructor. On 2026-11-11 the same script exits 0 on `Logger logger(PROJECT_NAME, logdir, basedir, quiet, NULL);`. That run is the current pass.
+The collection in §2.3 is the procedure record of the 1.1.1 move. On 2026-11-10 `tests/test-cpp-oop.sh` exited 0 for `Logger logger(argc, argv);`. That run does not prove the current constructor. On 2026-11-11 an earlier run of the same script exited 0 on `Logger logger(PROJECT_NAME, logdir, basedir, quiet, NULL);`. That run is the five-argument record. The current run exits 0 on `About about;` and `return about.run(argc, argv);`, with `Logger(About &about, LoggerClock clock)`. That run is the current pass.
 
 ## 5. Protection rule
 
-Future editors must not add a new `logger_*` function for a behavior that does not yet have a method on `Logger`, must not add a function whose only job is to construct `Logger`, must not split `Logger` into a class with a single method, must not mark TP-CPP-OOP pass before `main` constructs `Logger`, and must not move source while a file-scope `static` or a function in `logger.cpp` is missing from §2.3. The move uses the collected members and the collected functions. Line text stays in `requirement-cpp-logger.md`. Retention stays in `requirement-cpp-log-retention.md`. JSON stays in `requirement-cpp-json.md`. The about page stays in `requirement-cpp-about.md`.
+Future editors must not add a new `logger_*` function for a behavior that does not yet have a method on `Logger`, must not add a function whose only job is to construct `Logger`, must not peel one logging method of `Logger` into a class that only wraps that method, must not mark TP-CPP-OOP pass before `main` constructs `About`, and must not move source while a file-scope `static` or a function in `logger.cpp` is missing from §2.3. The move uses the collected members and the collected functions. `About` owns the name, the version, the paths, and the flags. `Logger` binds `About`. `Invocation`, `AboutCli`, and `Help` bind `Logger`. A second copy of those facts on `Logger` is not added. The path join stays on `requirement-cpp-logger-folder.md`. Line text stays in `requirement-cpp-logger.md`. Retention stays in `requirement-cpp-log-retention.md`. JSON stays in `requirement-cpp-json.md`. The about page stays in `requirement-cpp-about.md`. The usage page stays in `Help`.
 
 ## 6. Related artifacts
 
@@ -212,8 +220,16 @@ Future editors must not add a new `logger_*` function for a behavior that does n
 |----------|------|
 | `docs/requirements/index.md` | Registry |
 | `src/main/cpp/logger.h` | The class declaration |
-| `src/main/cpp/logger.cpp` | The method bodies |
-| `src/main/cpp/main.cpp` | The construction site |
+| `src/main/cpp/logger.cpp` | The `Logger` method bodies. `logger_print_about()` constructs `AboutCli` |
+| `src/main/cpp/about.h` | `class About`, the runtime source of the name, the version, the paths, and the flags |
+| `src/main/cpp/about.cpp` | `About::parse` and `About::run` |
+| `src/main/cpp/aboutcli.h` | `class AboutCli` |
+| `src/main/cpp/aboutcli.cpp` | The about page and its JSON object |
+| `src/main/cpp/help.h` | `class Help` |
+| `src/main/cpp/help.cpp` | The usage page and its JSON object |
+| `src/main/cpp/invocation.h` | `class Invocation` |
+| `src/main/cpp/invocation.cpp` | The command of this run |
+| `src/main/cpp/main.cpp` | The `About` construction site |
 | `tests/test-cpp-oop.sh` | The class, the call site, and the forwarding names |
 | `docs/requirements/requirement-cpp-coding-style.md` | Spelling and the present `extern "C"` names |
 | `docs/requirements/requirement-cpp-logger.md` | The line and the `logger_*` behavior this class owns |
@@ -222,6 +238,14 @@ Future editors must not add a new `logger_*` function for a behavior that does n
 | `tests/cpp-logger-retain-driver.cpp` | Calls `logger_maintain_directory`, so that C name keeps forwarding after the move |
 
 ## Terminologies
+
+### Loggable
+
+**Definition:** A loggable component binds the logger. Under debug mode, a major change of a member variable and an invocation of a member function are recorded as a debug log message.
+
+**Human daily-life explanation:** A loggable tool is clipped to the household notebook. On an ordinary day the checking page stays closed, and using the tool writes nothing. When that page is open, using one of the tool’s actions and changing one of its important settings each leave a note. A small step that only helps that action finish does not get its own note.
+
+**Daily-life example:** The kitchen timer is clipped to the notebook. You open the checking page, press start, and the notebook gets “start pressed.” You change the minutes from 5 to 10, and the notebook gets “minutes 10.” You close the checking page, press start again, and the timer runs with no new note.
 
 ### Avoid-factory-create-class
 
@@ -242,6 +266,11 @@ Future editors must not add a new `logger_*` function for a behavior that does n
 | 2026-11-11 | Active | The allowed constructor is the five-argument ChronicleLogger form in `requirement-cpp-logger.md` §2.0. The 1.1.1 call `Logger logger(argc, argv);` is not that constructor. TP-CPP-OOP returns to todo |
 | 2026-11-11 | Active | Release 1.1.2 writes the five-argument constructor. `tests/test-cpp-oop.sh` exits 0 on that call. TP-CPP-OOP is pass |
 | 2026-11-11 | Active | Release 1.1.3 adds `logger_persistence_storage`. The same script exits 0 for quiet errors, the log-directory return, and the debug tokens. TP-CPP-OOP stays pass |
+| 2026-11-11 | Active | `class About` is `about.h` and `about.cpp`. The about page left `Logger`. `tests/test-cpp-oop.sh` exits 0. TP-CPP-OOP stays pass |
+| 2026-11-11 | Active | `logger_parse_invocation` is an intermediate step. The next classes are `ParaParser` and `Invocation`. They are not written. TP-CPP-OOP stays pass |
+| 2026-11-11 | Active | `About` is the runtime source of the name, the version, the paths, and the flags. The about page is `AboutCli`. The usage page is `Help`. `Logger`, `AboutCli`, and `Help` bind `About`. `tests/test-cpp-oop.sh` exits 0. TP-CPP-OOP stays pass |
+| 2026-11-11 | Active | `Invocation`, `AboutCli`, and `Help` bind `Logger`. Under debug mode a public call and a major member change are debug records. A reader record does not create a directory. `help --json` with debug stays one object. `tests/test-cpp-oop.sh`, `tests/test-cpp-about.sh`, `tests/test-cpp-logger-portable.sh`, `tests/test-log-verbs.sh`, `tests/test-run-boundary.sh`, `tests/test-logger-folder.sh`, and `tests/test-cpp-log-retention.sh` exit 0. TP-CPP-OOP stays pass |
+| 2026-11-11 | Active | Release 1.2.0 prints `cpp-logger 1.2.0`. The same seven suites exit 0 on that triple. TP-CPP-OOP stays pass |
 
 **Last updated**: 2026-11-11
 **Owner**: OOP

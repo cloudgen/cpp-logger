@@ -52,7 +52,7 @@ This file owns the console channel. Every product message goes through the logge
 
 ### Sample code (this project)
 
-From `src/main/cpp/logger.cpp`. The 1.1.3 source returns true from `logger_stderr_level` for `LOGGER_LEVEL_ERROR`, `LOGGER_LEVEL_CRITICAL`, and `LOGGER_LEVEL_FATAL`. The full `logger_log` body is the sample in `requirement-cpp-logger.md`. The append runs before this test. Quiet is tested before the stream choice.
+From `src/main/cpp/logger.cpp`. The 1.2.0 source returns true from `logger_stderr_level` for `LOGGER_LEVEL_ERROR`, `LOGGER_LEVEL_CRITICAL`, and `LOGGER_LEVEL_FATAL`. The full `logger_log` body is the sample in `requirement-cpp-logger.md`. The append runs before this test. Quiet is tested before the stream choice.
 
 ```cpp
 void logger_set_quiet(bool quiet)

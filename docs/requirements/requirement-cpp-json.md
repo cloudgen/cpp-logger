@@ -5,7 +5,7 @@
 
 ## 1. Purpose
 
-This file owns JSON mode. JSON mode implies quiet. Every CLI verb prints JSON and does not print its human text beside that JSON. A log event is one object per event. `help`, `about`, `list`, and `show` each print one object. `test` prints one object per log event it emits. ChronicleLogger has no JSON mode. This product keeps JSON as its machine channel. An error, critical, or fatal event is still one object, and the human line stays off.
+This file owns JSON mode. JSON mode implies quiet. Every CLI verb prints JSON and does not print its human text beside that JSON. A log event is one object per event. `help`, `about`, `list`, and `show` each print one object. A debug record on those commands does not add an object. `test` prints one object per log event it emits. ChronicleLogger has no JSON mode. This product keeps JSON as its machine channel. An error, critical, or fatal event is still one object, and the human line stays off.
 
 ### 1.1 Human-facing
 
@@ -101,7 +101,7 @@ static gchar *logger_json_escape(const char *text)
 
 ### 2.1 Every verb
 
-The verbs are `help`, `about`, `test`, `list`, and `show`. A run with no verb is the default run. `--json` and `JSON=1` apply to each of them. The flag may sit before or after the verb. The `Logger` constructor reads `JSON=1` and the whole argument list before it runs `help` or `about`.
+The verbs are `help`, `about`, `test`, `list`, and `show`. A run with no verb is the default run. `--json` and `JSON=1` apply to each of them. The flag may sit before or after the verb. `About::parse` reads `JSON=1` and the argument list before `About` routes `help` or `about`.
 
 | Verb | JSON result |
 |------|-------------|
@@ -116,10 +116,10 @@ Quiet without JSON does not select these objects. `about` and `help` still print
 
 A verb that exits 1 in JSON mode prints one object on stdout and does not print that sentence on stderr. The sentence is the `error` value. A failure that happens with no verb selected stays on stderr.
 
-`about` uses the same reads as `requirement-cpp-about.md`. Strings stay empty when the page leaves the value empty. `inside_docker` and `tty` are booleans. `pid` is a number. `global` and `local` stay `not found` or the version string.
+`about` uses the same reads as `requirement-cpp-about.md`. `class AboutCli` builds this object. It reads the name, the version, and the description from the `About` the bound logger holds. Strings stay empty when the page leaves the value empty. `inside_docker` and `tty` are booleans. `pid` is a number. `global` and `local` stay `not found` or the version string. `persistence_storage` is the application directory. `log_folder` is that directory plus `/log`. An empty persistence directory leaves `log_folder` empty.
 
 ```json
-{"command":"about","name":"cpp-logger","version":"1.1.3","description":"Console logger. Lines follow ChronicleLogger.","domain":"No database. No configuration file.","runtime_tools":"none","entry_points":"cpp-logger","host":{"stamp":"2026-11-10 10:01:34.000000","compiler":"g++ 13.3.0","cpp_standard":"C++17","operation_system":"Linux","architecture":"x86_64","current_user":"user","shell":"/bin/bash","inside_docker":false,"location":"/tmp/cpp-logger-json-smoke/cpp-logger","pid":1,"cache_folder_used":"/dev/shm/cache/cache-cpp-logger","cache_folder_preferred":"/dev/shm/cache/cache-cpp-logger","cache_folder_1st_fallback":"","cache_folder_2nd_fallback":"","persistence_storage":"","tty":false},"install":{"global_path":"/usr/local/bin/cpp-logger","global":"not found","local_path":"","local":"not found","running_from":"/tmp/cpp-logger-json-smoke/cpp-logger"}}
+{"command":"about","name":"cpp-logger","version":"1.2.0","description":"Console logger. Lines follow ChronicleLogger.","domain":"No database. No configuration file.","runtime_tools":"none","entry_points":"cpp-logger","host":{"stamp":"2026-11-10 10:01:34.000000","compiler":"g++ 13.3.0","cpp_standard":"C++17","operation_system":"Linux","architecture":"x86_64","current_user":"user","shell":"/bin/bash","inside_docker":false,"location":"/tmp/cpp-logger-json-smoke/cpp-logger","pid":1,"cache_folder_used":"/dev/shm/cache/cache-cpp-logger","cache_folder_preferred":"/dev/shm/cache/cache-cpp-logger","cache_folder_1st_fallback":"","cache_folder_2nd_fallback":"","persistence_storage":"","log_folder":"","tty":false},"install":{"global_path":"/usr/local/bin/cpp-logger","global":"not found","local_path":"","local":"not found","running_from":"/tmp/cpp-logger-json-smoke/cpp-logger"}}
 ```
 
 ```json
@@ -155,7 +155,9 @@ Future editors must not print a human log line while JSON mode is on, leave quie
 | `docs/requirements/requirement-cpp-output.md` | Quiet storage and human-line streams |
 | `docs/requirements/requirement-cpp-parameters.md` | `--json` and `JSON=1` |
 | `docs/requirements/requirement-cpp-about.md` | The human page. JSON mode replaces it with the about object |
-| `src/main/cpp/logger.cpp` | JSON writer and the quiet force |
+| `src/main/cpp/logger.cpp` | JSON writer for log events and the quiet force |
+| `src/main/cpp/aboutcli.cpp` | The about object |
+| `src/main/cpp/help.cpp` | The help object |
 
-**Last updated**: 2026-11-10
+**Last updated**: 2026-11-11
 **Owner**: JSON

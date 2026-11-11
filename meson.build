@@ -24,7 +24,7 @@
 #   meson compile -C target/exe/debug
 
 project('cpp-logger', 'c', 'cpp',
-    version: '1.1.3',
+    version: '1.2.0',
     license: 'MIT',
     default_options: [
         'c_std=c11',

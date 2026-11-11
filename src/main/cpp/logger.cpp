@@ -4,13 +4,17 @@
 // =========================================================================
 //
 // Console output. No GTK window.
-// g_print and g_printerr are allowed in this file only.
+// g_print and g_printerr are allowed in this file for log lines and help.
+// about.cpp prints the about page. Log lines stay in this file.
 // !!! DO NOT REMOVE OR MODIFY ANY HEADER OR FUNCTION COMMENT BLOCK !!! 
 //
 // Last aligned with SyncPrjs CIAO style + GNOME + JSON + "help" + DEBUG: 2026-04-12
 // =========================================================================
 
 #include "logger.h"
+#include "about.h"
+#include "aboutcli.h"
+#include "help.h"
 #include "project.h"
 #include <glib.h>
 #include <stdio.h>
@@ -19,7 +23,6 @@
 #include <time.h>
 #include <unistd.h>
 #include <sys/stat.h>
-#include <sys/utsname.h>
 #include <sys/wait.h>
 
 /* Purpose: the object main constructed, for a C caller with no object parameter.
@@ -28,37 +31,48 @@
    Protection Rule: requirement-cpp-oop.md. This pointer is not a factory. */
 Logger *Logger::logger_active = NULL;
 
-struct LoggerInvocation {
-    int purpose;
-    int page;
-    int verbose;
-    int saw_quiet;
-    int saw_json;
-    int saw_debug;
-    int saw_verbose;
-    int debug;
-    int json;
-    int quiet;
-    int reader;
-    const char *prefix;
-    const char *home;
-    const char *datestamp;
-    char basedir[4096];
-};
 
-static LoggerInvocation g_parsed;
 
-static int invocation_datestamp_ok(const char *text)
+const char *Logger::logger_command_name(void)
 {
-    if (text == NULL || strlen(text) != 8) {
-        return 0;
+    if (bound->page == 1) {
+        return "help";
     }
-    for (int i = 0; i < 8; i++) {
-        if (text[i] < '0' || text[i] > '9') {
-            return 0;
-        }
+    if (bound->page == 2) {
+        return "about";
     }
-    return 1;
+    if (bound->purpose == 1) {
+        return "test";
+    }
+    if (bound->purpose == 2) {
+        return "list";
+    }
+    if (bound->purpose == 3) {
+        return "show";
+    }
+    return "";
+}
+
+/* Purpose: one verb failure. JSON mode prints one object. Otherwise stderr.
+   Parameters: message is the existing sentence.
+   Dependencies: logger_json_escape, logger_command_name.
+   Why This Design: the sentence stays the same. The channel follows JSON mode.
+   CIAO Principles: a verb result is one object, with no human line beside it.
+   Protection Rule: requirement-cpp-json.md owns the object.
+   Last updated: 2026-11-10 */
+void Logger::logger_die(const char *message)
+{
+    const char *name = logger_command_name();
+
+    if (bound->jsonMode && name[0] != '\0') {
+        gchar *escaped = logger_json_escape(message ? message : "");
+
+        g_print("{\"command\":\"%s\",\"error\":\"%s\"}\n", name, escaped);
+        g_free(escaped);
+        exit(1);
+    }
+    g_printerr("%s\n", message ? message : "");
+    exit(1);
 }
 
 static gchar *json_escape_text(const char *text)
@@ -95,41 +109,6 @@ static gchar *json_escape_text(const char *text)
     return g_string_free(out, FALSE);
 }
 
-static const char *invocation_command_name(void)
-{
-    if (g_parsed.page == 1) {
-        return "help";
-    }
-    if (g_parsed.page == 2) {
-        return "about";
-    }
-    if (g_parsed.purpose == 1) {
-        return "test";
-    }
-    if (g_parsed.purpose == 2) {
-        return "list";
-    }
-    if (g_parsed.purpose == 3) {
-        return "show";
-    }
-    return "";
-}
-
-static void invocation_die(const char *message)
-{
-    const char *name = invocation_command_name();
-
-    if (g_parsed.json && name[0] != '\0') {
-        gchar *escaped = json_escape_text(message ? message : "");
-
-        g_print("{\"command\":\"%s\",\"error\":\"%s\"}\n", name, escaped);
-        g_free(escaped);
-        exit(1);
-    }
-    g_printerr("%s\n", message ? message : "");
-    exit(1);
-}
-
 static void join_base_or_exit(char *out, size_t out_size, const char *head, const char *tail)
 {
     gchar *trimmed;
@@ -155,209 +134,6 @@ static void join_base_or_exit(char *out, size_t out_size, const char *head, cons
         g_printerr("logger folder path is too long\n");
         exit(1);
     }
-}
-
-static const char *invocation_take_value(int argc, char **argv, int *index, const char *flag)
-{
-    char message[256];
-
-    if (*index + 1 >= argc || argv[*index + 1][0] == '\0') {
-        g_snprintf(message, sizeof message, "missing value for %s", flag);
-        invocation_die(message);
-    }
-    *index += 1;
-    return argv[*index];
-}
-
-static void invocation_set_purpose(int purpose)
-{
-    if (g_parsed.purpose != 0 || g_parsed.page != 0) {
-        invocation_die("one test purpose command");
-    }
-    g_parsed.purpose = purpose;
-}
-
-static void invocation_set_page(int page)
-{
-    if (g_parsed.page != 0 || g_parsed.purpose != 0) {
-        invocation_die("one test purpose command");
-    }
-    g_parsed.page = page;
-}
-
-static int env_is_one(const char *name)
-{
-    const char *value = getenv(name);
-
-    if (value == NULL) {
-        return 0;
-    }
-    return atoi(value) == 1 || strcmp(value, "1") == 0;
-}
-
-/* Purpose: the same debug predicate as ChronicleLogger isDebug.
-   DEBUG is read first. An empty DEBUG falls through to debug.
-   The value matches show, true, or 1 after ASCII lowercasing.
-   Any other value, including a bare non-empty string, leaves debug off. */
-static int logger_env_debug_token(void)
-{
-    const char *value;
-    char folded[8];
-    size_t n;
-
-    value = getenv("DEBUG");
-    if (value == NULL || value[0] == '\0') {
-        value = getenv("debug");
-    }
-    if (value == NULL) {
-        return 0;
-    }
-    n = 0;
-    while (value[n] != '\0' && n + 1 < sizeof folded) {
-        char c = value[n];
-
-        if (c >= 'A' && c <= 'Z') {
-            c = (char)(c - 'A' + 'a');
-        }
-        folded[n] = c;
-        n++;
-    }
-    if (value[n] != '\0') {
-        return 0;
-    }
-    folded[n] = '\0';
-    return strcmp(folded, "show") == 0
-        || strcmp(folded, "true") == 0
-        || strcmp(folded, "1") == 0;
-}
-
-/* Purpose: read argc and argv before any Logger exists.
-   A rejected command exits here, so construction does not create a file.
-   JSON=1 is read before the scan. help and about run after the scan. */
-void logger_parse_invocation(int argc, char **argv, const char **logdir, const char **basedir, bool *quiet)
-{
-    char tail[256];
-    const char *dir;
-
-    memset(&g_parsed, 0, sizeof g_parsed);
-    if (env_is_one("JSON")) {
-        g_parsed.json = 1;
-    }
-    if (env_is_one("QUIET")) {
-        g_parsed.quiet = 1;
-    }
-    if (logger_env_debug_token()) {
-        g_parsed.debug = 1;
-    }
-
-    for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "--quiet") == 0) {
-            g_parsed.saw_quiet = 1;
-            g_parsed.quiet = 1;
-        } else if (strcmp(argv[i], "--json") == 0) {
-            g_parsed.saw_json = 1;
-            g_parsed.json = 1;
-        } else if (strcmp(argv[i], "--debug") == 0) {
-            g_parsed.saw_debug = 1;
-            g_parsed.debug = 1;
-        } else if (strcmp(argv[i], "--verbose") == 0) {
-            g_parsed.saw_verbose = 1;
-            g_parsed.verbose = 1;
-        } else if (strcmp(argv[i], "--prefix") == 0) {
-            g_parsed.prefix = invocation_take_value(argc, argv, &i, "--prefix");
-        } else if (strcmp(argv[i], "--home") == 0) {
-            g_parsed.home = invocation_take_value(argc, argv, &i, "--home");
-        } else if (strcmp(argv[i], "--log-datestamp") == 0) {
-            g_parsed.datestamp = invocation_take_value(argc, argv, &i, "--log-datestamp");
-        } else if (strcmp(argv[i], "test") == 0) {
-            invocation_set_purpose(1);
-        } else if (strcmp(argv[i], "list") == 0) {
-            invocation_set_purpose(2);
-        } else if (strcmp(argv[i], "show") == 0) {
-            invocation_set_purpose(3);
-        } else if (strcmp(argv[i], "help") == 0) {
-            invocation_set_page(1);
-        } else if (strcmp(argv[i], "about") == 0) {
-            invocation_set_page(2);
-        }
-    }
-
-    if (g_parsed.purpose != 0) {
-        if (g_parsed.prefix == NULL && g_parsed.home == NULL) {
-            invocation_die("test purpose command requires --prefix or --home");
-        }
-        if ((g_parsed.purpose == 1 || g_parsed.purpose == 3) && g_parsed.datestamp == NULL) {
-            invocation_die("test purpose command requires --log-datestamp YYYYMMDD");
-        }
-    }
-    if (g_parsed.datestamp != NULL && !invocation_datestamp_ok(g_parsed.datestamp)) {
-        invocation_die("--log-datestamp requires YYYYMMDD");
-    }
-
-    g_parsed.reader = (g_parsed.page != 0 || g_parsed.purpose == 2 || g_parsed.purpose == 3) ? 1 : 0;
-    if (g_parsed.purpose != 0) {
-        dir = g_parsed.prefix != NULL ? g_parsed.prefix : g_parsed.home;
-        if (g_snprintf(tail, sizeof tail, "%s/%s",
-                       g_parsed.prefix != NULL ? "var" : ".app",
-                       PROJECT_NAME) >= (gint)sizeof tail) {
-            g_printerr("logger folder path is too long\n");
-            exit(1);
-        }
-        join_base_or_exit(g_parsed.basedir, sizeof g_parsed.basedir, dir, tail);
-    }
-
-    if (logdir != NULL) {
-        *logdir = NULL;
-    }
-    if (basedir != NULL) {
-        *basedir = g_parsed.basedir[0] != '\0' ? g_parsed.basedir : NULL;
-    }
-    if (quiet != NULL) {
-        *quiet = g_parsed.quiet || g_parsed.json;
-    }
-}
-
-
-const char *Logger::logger_command_name(void)
-{
-    if (logger_pending_page == 1) {
-        return "help";
-    }
-    if (logger_pending_page == 2) {
-        return "about";
-    }
-    if (logger_purpose == 1) {
-        return "test";
-    }
-    if (logger_purpose == 2) {
-        return "list";
-    }
-    if (logger_purpose == 3) {
-        return "show";
-    }
-    return "";
-}
-
-/* Purpose: one verb failure. JSON mode prints one object. Otherwise stderr.
-   Parameters: message is the existing sentence.
-   Dependencies: logger_json_escape, logger_command_name.
-   Why This Design: the sentence stays the same. The channel follows JSON mode.
-   CIAO Principles: a verb result is one object, with no human line beside it.
-   Protection Rule: requirement-cpp-json.md owns the object.
-   Last updated: 2026-11-10 */
-void Logger::logger_die(const char *message)
-{
-    const char *name = logger_command_name();
-
-    if (logger_json_mode && name[0] != '\0') {
-        gchar *escaped = logger_json_escape(message ? message : "");
-
-        g_print("{\"command\":\"%s\",\"error\":\"%s\"}\n", name, escaped);
-        g_free(escaped);
-        exit(1);
-    }
-    g_printerr("%s\n", message ? message : "");
-    exit(1);
 }
 
 /* Purpose: join a directory and a relative tail into one base path.
@@ -400,22 +176,22 @@ void Logger::logger_apply_base(const char *base, const char *stamp)
 
 int Logger::logger_is_test_verb(void)
 {
-    return logger_purpose == 1;
+    return bound->purpose == 1;
 }
 
 void Logger::logger_set_purpose(int purpose)
 {
-    if (logger_purpose != 0 || logger_pending_page != 0) {
+    if (bound->purpose != 0 || bound->page != 0) {
         logger_die("one test purpose command");
     }
-    logger_purpose = purpose;
+    bound->purpose = purpose;
 }
 
 void Logger::logger_list_emit(GSList *names)
 {
     GSList *item;
 
-    if (!logger_json_mode) {
+    if (!bound->jsonMode) {
         for (item = names; item != NULL; item = item->next) {
             g_print("%s\n", (char *)item->data);
         }
@@ -464,7 +240,7 @@ void Logger::logger_list_log_files(void)
     if (dir == NULL) {
         if (error != NULL && g_error_matches(error, G_FILE_ERROR, G_FILE_ERROR_NOENT)) {
             g_error_free(error);
-            if (logger_json_mode) {
+            if (bound->jsonMode) {
                 logger_list_emit(NULL);
             }
             return;
@@ -518,7 +294,7 @@ void Logger::logger_show_log_file(void)
         }
         logger_die(message);
     }
-    if (logger_json_mode) {
+    if (bound->jsonMode) {
         gchar *folder = logger_json_escape(logger_log_path);
         gchar *body = logger_json_escape(text ? text : "");
 
@@ -582,25 +358,32 @@ const char *Logger::logger_take_value(int argc, char **argv, int *index, const c
 // ──────────────────────────────────────────────
 void Logger::logger_set_quiet(bool quiet)
 {
-    if (logger_json_mode) {
-        logger_quiet_mode = true;
+    if (bound->jsonMode) {
+        bound->quietMode = true;
         return;
     }
-    logger_quiet_mode = quiet;
+    bound->quietMode = quiet;
 }
 
 bool Logger::logger_get_quiet(void)
 {
-    return logger_quiet_mode;
+    return bound->quietMode;
 }
 
 bool Logger::logger_get_debug(void)
 {
-    return debug_env_enabled;
+    return bound->debugEnabled;
 }
 
-/* Purpose: return the resolved log directory, which is the persistent storage.
-   An unresolved directory is an empty string. This read does not create it. */
+bool Logger::logger_get_json(void)
+{
+    return bound->jsonMode;
+}
+
+/* Purpose: return the resolved log directory.
+   That directory is the persistence folder plus /log, or an explicit log directory.
+   An unresolved directory is an empty string. This read does not create it.
+   The about page does not print this return as Persistence storage. */
 const char *Logger::logger_persistence_storage(void)
 {
     return logger_folder;
@@ -638,48 +421,36 @@ const char *Logger::logger_persistence_storage(void)
 // ──────────────────────────────────────────────
 void Logger::logger_log_found_switches(void)
 {
-    if (!debug_env_enabled) {
+    if (!bound->debugEnabled) {
         return;
     }
-    if (logger_saw_verbose) {
+    if (bound->sawVerbose) {
         logger_debug(LOG_COMPONENT, "switch --verbose");
     }
-    if (logger_saw_quiet) {
+    if (bound->sawQuiet) {
         logger_debug(LOG_COMPONENT, "switch --quiet");
     }
-    if (logger_saw_json) {
+    if (bound->sawJson) {
         logger_debug(LOG_COMPONENT, "switch --json");
     }
-    if (logger_saw_debug) {
+    if (bound->sawDebug) {
         logger_debug(LOG_COMPONENT, "switch --debug");
     }
-    if (logger_prefix_arg != NULL) {
-        logger_debug(LOG_COMPONENT, "switch --prefix %s", logger_prefix_arg);
+    if (bound->prefix != NULL) {
+        logger_debug(LOG_COMPONENT, "switch --prefix %s", bound->prefix);
     }
-    if (logger_home_arg != NULL) {
-        logger_debug(LOG_COMPONENT, "switch --home %s", logger_home_arg);
+    if (bound->home != NULL) {
+        logger_debug(LOG_COMPONENT, "switch --home %s", bound->home);
     }
-    if (logger_datestamp_arg != NULL) {
-        logger_debug(LOG_COMPONENT, "switch --log-datestamp %s", logger_datestamp_arg);
+    if (bound->datestamp != NULL) {
+        logger_debug(LOG_COMPONENT, "switch --log-datestamp %s", bound->datestamp);
     }
 }
 
-Logger::Logger(const char *logname, const char *logdir, const char *basedir, bool is_quiet, LoggerClock clock)
-    : logger_quiet_mode(false),
-      logger_json_mode(false),
-      debug_env_enabled(false),
-      logger_verbose(0),
+Logger::Logger(About &about, LoggerClock clock)
+    : bound(&about),
       logger_folder(),
       logger_log_path(),
-      logger_purpose(0),
-      logger_prefix_arg(NULL),
-      logger_home_arg(NULL),
-      logger_datestamp_arg(NULL),
-      logger_saw_quiet(0),
-      logger_saw_json(0),
-      logger_saw_debug(0),
-      logger_saw_verbose(0),
-      logger_pending_page(0),
       logger_retention_done(0),
       logger_maintain_busy(0),
       logger_name(),
@@ -689,40 +460,27 @@ Logger::Logger(const char *logname, const char *logdir, const char *basedir, boo
     /* An empty name builds an unbound object. The retain driver uses that
        object for logger_maintain_directory. This path does not store
        logger_active, does not create a directory, and does not write. */
-    if (logname == NULL || logname[0] == '\0') {
+    if (about.name()[0] == '\0') {
         return;
     }
 
-    logger_store_name(logname);
+    logger_store_name(about.name());
     logger_clock = clock;
-    logger_purpose = g_parsed.purpose;
-    logger_pending_page = g_parsed.page;
-    logger_verbose = g_parsed.verbose;
-    logger_saw_quiet = g_parsed.saw_quiet;
-    logger_saw_json = g_parsed.saw_json;
-    logger_saw_debug = g_parsed.saw_debug;
-    logger_saw_verbose = g_parsed.saw_verbose;
-    logger_prefix_arg = g_parsed.prefix;
-    logger_home_arg = g_parsed.home;
-    logger_datestamp_arg = g_parsed.datestamp;
-    logger_retention_done = 0;
     logger_folder[0] = '\0';
     logger_log_path[0] = '\0';
     logger_old_log_path[0] = '\0';
-
-    debug_env_enabled = g_parsed.debug || logger_env_debug_token();
-    logger_json_mode = g_parsed.json;
-    if (!logger_json_mode && env_is_one("JSON")) {
-        logger_json_mode = true;
-    }
-    logger_set_quiet(is_quiet || g_parsed.quiet);
-    if (logger_json_mode) {
+    if (about.json()) {
         logger_set_quiet(true);
     }
 
-    logger_resolve_paths(logdir, basedir);
+    logger_resolve_paths(about.logDir(), about.baseDir());
     logger_ensure_log_directory();
     logger_active = this;
+}
+
+About &Logger::boundAbout(void)
+{
+    return *bound;
 }
 
 void Logger::logger_store_name(const char *logname)
@@ -785,8 +543,8 @@ void Logger::logger_clock_day(char *stamp, size_t stamp_size)
 
 void Logger::logger_file_stamp(char *stamp, size_t stamp_size)
 {
-    if (logger_datestamp_arg != NULL) {
-        g_strlcpy(stamp, logger_datestamp_arg, stamp_size);
+    if (bound->datestamp != NULL) {
+        g_strlcpy(stamp, bound->datestamp, stamp_size);
         return;
     }
     logger_clock_day(stamp, stamp_size);
@@ -878,12 +636,12 @@ void Logger::logger_ensure_log_directory(void)
 {
     FILE *file;
 
-    if (g_parsed.reader || logger_folder[0] == '\0') {
+    if (bound->reader || logger_folder[0] == '\0') {
         return;
     }
     if (!g_file_test(logger_folder, G_FILE_TEST_IS_DIR)) {
         if (g_mkdir_with_parents(logger_folder, 0755) == 0 &&
-            !logger_get_quiet() && !logger_json_mode) {
+            !logger_get_quiet() && !bound->jsonMode) {
             g_print("Created directory: %s\n", logger_folder);
         }
     }
@@ -916,49 +674,36 @@ void Logger::logger_note_dated_path(void)
     active = strrchr(logger_log_path, '/');
     active = (active != NULL) ? active + 1 : logger_log_path;
     logger_maintain_directory(logger_folder, active, today);
-    if (!debug_env_enabled) {
+    if (!bound->debugEnabled) {
         return;
     }
     g_snprintf(using_message, sizeof using_message, "Using %s", logger_log_path);
     logger_append_log_file(LOGGER_LEVEL_INFO, "logger", using_message);
-    if (logger_json_mode) {
+    if (bound->jsonMode) {
         gchar *escaped = logger_json_escape(using_message);
 
         g_print("{\"timestamp\":%ld,\"level\":\"INFO\",\"message\":\"%s\"}\n",
                 (long)time(NULL),
                 escaped);
         g_free(escaped);
-    } else if (!logger_get_quiet() && (logger_verbose || debug_env_enabled)) {
+    } else if (!logger_get_quiet() && (bound->verbose || bound->debugEnabled)) {
         logger_emit_chronicle(LOGGER_LEVEL_INFO, "logger", using_message);
     }
 }
 
 void Logger::logger_finish_command(void)
 {
-    if (logger_pending_page == 1) {
-        logger_print_help();
-        exit(0);
-    }
-    if (logger_pending_page == 2) {
-        logger_print_about();
-        exit(0);
-    }
-    if (logger_purpose == 2) {
-        logger_list_log_files();
-        exit(0);
-    }
-    if (logger_purpose == 3) {
-        logger_show_log_file();
-        exit(0);
+    if (bound->page != 0 || bound->purpose == 2 || bound->purpose == 3) {
+        return;
     }
 
     logger_log_found_switches();
     logger_debug(LOG_COMPONENT, "component %s start", LOG_COMPONENT);
-    if (logger_json_mode) {
+    if (bound->jsonMode) {
         logger_set_quiet(true);
         logger_debug(LOG_COMPONENT, "JSON mode active → quiet mode forced ON");
     }
-    if (debug_env_enabled) {
+    if (bound->debugEnabled) {
         if (logger_folder[0] != '\0') {
             logger_debug(LOG_COMPONENT, "logger folder %s", logger_folder);
             logger_debug(LOG_COMPONENT, "log file %s", logger_log_path);
@@ -1421,7 +1166,7 @@ void Logger::logger_append_log_file(LoggerOutputLevel level, const char *compone
     }
     if (g_mkdir_with_parents(logger_folder, 0755) != 0) {
         g_printerr("cannot create logger folder %s\n", logger_folder);
-        if (logger_purpose != 0) {
+        if (bound->purpose != 0) {
             exit(1);
         }
         return;
@@ -1430,7 +1175,7 @@ void Logger::logger_append_log_file(LoggerOutputLevel level, const char *compone
     file = fopen(logger_log_path, "a");
     if (file == NULL) {
         g_printerr("cannot open log file %s\n", logger_log_path);
-        if (logger_purpose != 0) {
+        if (bound->purpose != 0) {
             exit(1);
         }
         return;
@@ -1466,7 +1211,7 @@ void Logger::logger_log(LoggerOutputLevel level, const char *component, const ch
     logger_note_dated_path();
     logger_append_log_file(level, part, message);
 
-    if (logger_json_mode) {
+    if (bound->jsonMode) {
         gchar *escaped = logger_json_escape(message ? message : "");
         g_print("{\"timestamp\":%ld,\"level\":\"%s\",\"message\":\"%s\"}\n",
                 (long)time(NULL),
@@ -1474,7 +1219,7 @@ void Logger::logger_log(LoggerOutputLevel level, const char *component, const ch
                 escaped);
         g_free(escaped);
     } else if (!logger_get_quiet() &&
-               (logger_stderr_level(level) || logger_verbose || debug_env_enabled)) {
+               (logger_stderr_level(level) || bound->verbose || bound->debugEnabled)) {
         logger_emit_chronicle(level, part, message);
     }
 
@@ -1625,6 +1370,33 @@ void Logger::logger_debug(const char *component, const char *format, ...)
     va_end(args);
 }
 
+/* Purpose: record one loggable debug line.
+   Parameters: component names the type. message is the call or the member change.
+   Dependencies: logger_get_debug, logger_emit_chronicle, logger_debug.
+   Why This Design: a reader command must not open a log file and must not run retention.
+   JSON on a reader stays one object. Quiet hides the console line.
+   A recording command uses the ordinary debug line, including the dated file.
+   CIAO Principles: Caution on the reader gate. The predicate stays logger_get_debug.
+   Protection Rule: requirement-cpp-debug-mode.md. No second debug predicate.
+   Last updated: 2026-11-11 */
+void Logger::logger_record_debug(const char *component, const char *message)
+{
+    const char *part = component != NULL ? component : "";
+    const char *text = message != NULL ? message : "";
+
+    if (!logger_get_debug()) {
+        return;
+    }
+    if (bound->reader) {
+        if (bound->jsonMode || logger_get_quiet()) {
+            return;
+        }
+        logger_emit_chronicle(LOGGER_LEVEL_DEBUG, part, text);
+        return;
+    }
+    logger_debug(part, "%s", text);
+}
+
 // ──────────────────────────────────────────────
 // logger_print_help() - Help Function: logger_print_help
 // ──────────────────────────────────────────────
@@ -1647,307 +1419,16 @@ void Logger::logger_debug(const char *component, const char *format, ...)
 // ──────────────────────────────────────────────
 void Logger::logger_print_help(void)
 {
-    if (logger_json_mode) {
-        g_print("{\"command\":\"help\",\"verbs\":[\"help\",\"about\",\"test\",\"list\",\"show\"],\"flags\":[\"--verbose\",\"--quiet\",\"--json\",\"--debug\",\"--prefix\",\"--home\",\"--log-datestamp\"]}\n");
-        return;
-    }
-    g_print("Usage: %s [help|about|test|list|show] [options]\n\n", PROJECT_NAME);
-    g_print("Commands:\n");
-    g_print("  help                 Show this help message\n");
-    g_print("  about                Show this program, this computer, and where it is running from\n");
-    g_print("  test                 Write one test log line. Requires --prefix or --home, and --log-datestamp\n");
-    g_print("  list                 List regular *.log names. Requires --prefix or --home\n");
-    g_print("  show                 Print one log file. Requires --prefix or --home, and --log-datestamp\n");
-    g_print("  One of test, list, or show. A second command stops.\n\n");
-    g_print("Options:\n");
-    g_print("  --verbose            Show stdout log lines. Ignored with --quiet or --json\n");
-    g_print("  --quiet              Hide every human console line. The log file still receives it\n");
-    g_print("  --json               JSON mode. Each verb prints one JSON object. --verbose does not add a human line\n");
-    g_print("  --debug              Enable debug events and show stdout log lines. Hidden with --quiet or --json\n");
-    g_print("  --prefix <dir>       Test switch for root or sudo. Log directory <dir>/var/%s/log\n", PROJECT_NAME);
-    g_print("  --home <dir>         Test switch for any other user. Log directory <dir>/.app/%s/log\n", PROJECT_NAME);
-    g_print("  --log-datestamp <YYYYMMDD>  Log file %s-<YYYYMMDD>.log\n\n", PROJECT_NAME);
-    g_print("Environments:\n");
-    g_print("  root or sudo         Base /var/%s and log directory /var/%s/log\n", PROJECT_NAME, PROJECT_NAME);
-    g_print("  other                Base $HOME/.app/%s and log directory $HOME/.app/%s/log\n\n", PROJECT_NAME, PROJECT_NAME);
-    g_print("Environment Variables:\n");
-    g_print("  DEBUG=1              Enable debug. Also show, true, or 1. The name debug matches too\n");
-    g_print("  QUIET=1              Same as --quiet\n");
-    g_print("  JSON=1               Same as --json\n");
-    g_print("  HOME                 Other-user base on a normal run. A test purpose command ignores it\n\n");
-    g_print("Examples:\n");
-    g_print("  DEBUG=1 %s\n", PROJECT_NAME);
-    g_print("  %s test --home /tmp --log-datestamp 20261003 --debug\n", PROJECT_NAME);
-    g_print("  %s test --prefix /tmp --log-datestamp 20261003 --debug\n", PROJECT_NAME);
-    g_print("  %s list --home /tmp\n", PROJECT_NAME);
-    g_print("  %s show --home /tmp --log-datestamp 20261003\n", PROJECT_NAME);
-    g_print("  %s --verbose\n", PROJECT_NAME);
-    g_print("  %s --quiet\n", PROJECT_NAME);
-    g_print("  %s --json\n", PROJECT_NAME);
-    g_print("  %s about\n", PROJECT_NAME);
-}
+    Help help;
 
-// ──────────────────────────────────────────────
-// logger_print_about() - About page: identity, host check, install location
-// ──────────────────────────────────────────────
-//
-// Purpose:
-//   Print three live facts for this run: which program this is, what this
-//   computer is, and where the program is running from.
-//
-// Parameters:
-//   Input: None. Reads the environment and path existence at print time.
-//   Output/Return: None
-//
-// Dependencies:
-//   - Functions called: g_print(), uname(), readlink(), getenv(), stat(), access()
-//   - Headers required: project.h, glib.h, sys/utsname.h, sys/stat.h, unistd.h
-//
-// Protection:
-//   Uses g_print only. Does not spawn a compiler, an interpreter, or a package manager.
-//   Does not install. Does not execute the global or local bin to read a version.
-//   Does not create a cache directory, a persistence directory, or a log directory.
-//
-// Last updated: Three live facts (2026-11-10)
-// ──────────────────────────────────────────────
-void Logger::logger_about_copy(char *out, size_t out_size, const char *value)
-{
-    if (value == NULL || value[0] == '\0') {
-        out[0] = '\0';
-        return;
-    }
-    g_strlcpy(out, value, out_size);
-}
-
-void Logger::logger_about_probe(char *out, size_t out_size, const char *path, const char *version)
-{
-    struct stat st;
-
-    if (path == NULL || path[0] == '\0') {
-        g_strlcpy(out, "not found", out_size);
-        return;
-    }
-    if (stat(path, &st) == 0 && S_ISREG(st.st_mode) && access(path, X_OK) == 0) {
-        g_strlcpy(out, version, out_size);
-        return;
-    }
-    g_strlcpy(out, "not found", out_size);
-}
-
-void Logger::logger_print_about(void)
-{
-    char stamp[64];
-    char version[32];
-    char os_line[256];
-    char arch[128];
-    char user[256];
-    char shell[256];
-    char location[4096];
-    char preferred[512];
-    char fallback1[512];
-    char used[512];
-    char persistence[4096];
-    char global_path[512];
-    char local_path[512];
-    char global_value[32];
-    char local_value[32];
-    const char *prefix;
-    time_t now;
-    struct tm *local_tm;
-    struct utsname uts;
-    struct stat st;
-    ssize_t link_len;
-    const char *home;
-    FILE *docker;
-    int root;
-    int inside_docker;
-
-    g_snprintf(version, sizeof(version), "%d.%d.%d",
-               VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
-
-    stamp[0] = '\0';
-    now = time(NULL);
-    if (now != (time_t)-1) {
-        local_tm = localtime(&now);
-        if (local_tm != NULL &&
-            strftime(stamp, sizeof(stamp), "%Y-%m-%d %H:%M:%S", local_tm) > 0) {
-            g_strlcat(stamp, ".000000", sizeof(stamp));
-        } else {
-            stamp[0] = '\0';
-        }
-    }
-
-    os_line[0] = '\0';
-    arch[0] = '\0';
-    if (uname(&uts) == 0) {
-        g_snprintf(os_line, sizeof(os_line), "%s %s", uts.sysname, uts.release);
-        g_strlcpy(arch, uts.machine, sizeof(arch));
-    }
-
-    logger_about_copy(user, sizeof(user), getenv("USER"));
-    logger_about_copy(shell, sizeof(shell), getenv("SHELL"));
-
-    link_len = readlink("/proc/self/exe", location, sizeof(location) - 1);
-    if (link_len < 0) {
-        g_strlcpy(location, PROJECT_NAME, sizeof(location));
-    } else {
-        location[link_len] = '\0';
-    }
-
-    preferred[0] = '\0';
-    fallback1[0] = '\0';
-    used[0] = '\0';
-    persistence[0] = '\0';
-    home = getenv("HOME");
-    if (home != NULL && home[0] == '\0') {
-        home = NULL;
-    }
-    root = (geteuid() == 0);
-    if (root) {
-        g_snprintf(preferred, sizeof(preferred), "/var/cache/%s", PROJECT_NAME);
-        g_strlcpy(used, preferred, sizeof(used));
-    } else {
-        g_snprintf(preferred, sizeof(preferred), "/dev/shm/cache/cache-%s", PROJECT_NAME);
-        if (home != NULL) {
-            g_snprintf(fallback1, sizeof(fallback1), "%s/.cache/cache-%s", home, PROJECT_NAME);
-        }
-        if (stat("/dev/shm", &st) == 0 && S_ISDIR(st.st_mode)) {
-            g_strlcpy(used, preferred, sizeof(used));
-        } else {
-            g_strlcpy(used, fallback1, sizeof(used));
-        }
-    }
-    logger_about_copy(persistence, sizeof(persistence), logger_persistence_storage());
-
-    inside_docker = 0;
-    docker = fopen("/.dockerenv", "r");
-    if (docker != NULL) {
-        fclose(docker);
-        inside_docker = 1;
-    }
-
-    prefix = getenv("PREFIX");
-    if (prefix != NULL && prefix[0] == '\0') {
-        prefix = NULL;
-    }
-    if (prefix != NULL) {
-        g_snprintf(global_path, sizeof(global_path), "%s/bin/%s", prefix, PROJECT_NAME);
-    } else {
-        g_snprintf(global_path, sizeof(global_path), "/usr/local/bin/%s", PROJECT_NAME);
-    }
-    local_path[0] = '\0';
-    if (home != NULL) {
-        g_snprintf(local_path, sizeof(local_path), "%s/.local/bin/%s", home, PROJECT_NAME);
-    }
-    logger_about_probe(global_value, sizeof(global_value), global_path, version);
-    logger_about_probe(local_value, sizeof(local_value), local_path, version);
-
-    if (logger_json_mode) {
-        GString *out = g_string_new("{");
-        gchar *escaped;
-        char compiler[160];
-        int first = 1;
-
-        g_snprintf(compiler, sizeof compiler, "g++ %s", __VERSION__);
-
-        #define LOGGER_JSON_STR(key, value) \
-            do { \
-                escaped = logger_json_escape(value ? (value) : ""); \
-                if (!first) { \
-                    g_string_append_c(out, ','); \
-                } \
-                first = 0; \
-                g_string_append_printf(out, "\"%s\":\"%s\"", (key), escaped); \
-                g_free(escaped); \
-            } while (0)
-
-        LOGGER_JSON_STR("command", "about");
-        LOGGER_JSON_STR("name", PROJECT_NAME);
-        LOGGER_JSON_STR("version", version);
-        LOGGER_JSON_STR("description", PROJECT_DESCRIPTION);
-        LOGGER_JSON_STR("domain", "No database. No configuration file.");
-        LOGGER_JSON_STR("runtime_tools", "none");
-        LOGGER_JSON_STR("entry_points", PROJECT_NAME);
-        g_string_append(out, ",\"host\":{");
-        first = 1;
-        LOGGER_JSON_STR("stamp", stamp);
-        LOGGER_JSON_STR("compiler", compiler);
-        LOGGER_JSON_STR("cpp_standard", "C++17");
-        LOGGER_JSON_STR("operation_system", os_line);
-        LOGGER_JSON_STR("architecture", arch);
-        LOGGER_JSON_STR("current_user", user);
-        LOGGER_JSON_STR("shell", shell);
-        if (!first) {
-            g_string_append_c(out, ',');
-        }
-        g_string_append_printf(out, "\"inside_docker\":%s", inside_docker ? "true" : "false");
-        first = 0;
-        LOGGER_JSON_STR("location", location);
-        if (!first) {
-            g_string_append_c(out, ',');
-        }
-        g_string_append_printf(out, "\"pid\":%ld", (long)getpid());
-        first = 0;
-        LOGGER_JSON_STR("cache_folder_used", used);
-        LOGGER_JSON_STR("cache_folder_preferred", preferred);
-        LOGGER_JSON_STR("cache_folder_1st_fallback", fallback1);
-        LOGGER_JSON_STR("cache_folder_2nd_fallback", "");
-        LOGGER_JSON_STR("persistence_storage", persistence);
-        if (!first) {
-            g_string_append_c(out, ',');
-        }
-        g_string_append_printf(out, "\"tty\":%s", isatty(STDOUT_FILENO) ? "true" : "false");
-        g_string_append(out, "},\"install\":{");
-        first = 1;
-        LOGGER_JSON_STR("global_path", global_path);
-        LOGGER_JSON_STR("global", global_value);
-        LOGGER_JSON_STR("local_path", local_path);
-        LOGGER_JSON_STR("local", local_value);
-        LOGGER_JSON_STR("running_from", location);
-        g_string_append(out, "}}\n");
-        #undef LOGGER_JSON_STR
-        g_print("%s", out->str);
-        g_string_free(out, TRUE);
-        return;
-    }
-
-    g_print("%s %s\n", PROJECT_NAME, version);
-    g_print("%s\n", PROJECT_DESCRIPTION);
-    g_print("Domain: No database. No configuration file.\n");
-    g_print("Runtime tools: none\n");
-    g_print("Entry points: %s\n", PROJECT_NAME);
-    g_print("\n");
-    g_print("%s %s(v%s)  [CHECK SYSTEM]:\n", stamp, PROJECT_NAME, version);
-    g_print("  Now checking your operation system!\n");
-    g_print("    Compiler: g++ %s\n", __VERSION__);
-    g_print("    C++ standard: C++17\n");
-    g_print("    Operation System: %s\n", os_line);
-    g_print("    Architecture: %s\n", arch);
-    g_print("    Current User: %s\n", user);
-    g_print("    Shell: %s\n", shell);
-    g_print("    Inside docker container: %s\n", inside_docker ? "True" : "False");
-    g_print("    Location: %s\n", location);
-    g_print("    PID: %ld\n", (long)getpid());
-    g_print("    Cache folder used: %s\n", used);
-    g_print("    Cache folder (preferred): %s\n", preferred);
-    g_print("    Cache folder (1st fallback): %s\n", fallback1);
-    g_print("    Cache folder (2nd fallback): %s\n", "");
-    g_print("    Persistence storage: %s\n", persistence);
-    g_print("    TTY / Interactive: %s\n", isatty(STDOUT_FILENO) ? "yes" : "no");
-    g_print("\n");
-    g_print("Install location\n");
-    g_print("    Global install (%s): %s\n", global_path, global_value);
-    if (local_path[0] != '\0') {
-        g_print("    Local install (%s): %s\n", local_path, local_value);
-    } else {
-        g_print("    Local install: %s\n", local_value);
-    }
-    g_print("    Running from: %s\n", location);
+    help.bind(*this);
+    help.printPage();
 }
 
 
 /* Purpose: C linkage for the names already declared in logger.h.
-   Each name forwards to the object main constructed.
+   Each logging name forwards to the object main constructed.
+   logger_print_about constructs About and prints that page.
    logger_maintain_directory, with nothing bound, uses a short-lived object
    so the retain driver does not parse argv or append a log.
    Protection Rule: requirement-cpp-oop.md. These names are not new behavior. */
@@ -2003,6 +1484,15 @@ extern "C" bool logger_get_debug(void)
         exit(1);
     }
     return Logger::logger_active->logger_get_debug();
+}
+
+extern "C" bool logger_get_json(void)
+{
+    if (Logger::logger_active == NULL) {
+        g_printerr("Logger is constructed at the call site\n");
+        exit(1);
+    }
+    return Logger::logger_active->logger_get_json();
 }
 
 extern "C" const char *logger_persistence_storage(void)
@@ -2095,7 +1585,10 @@ extern "C" void logger_debug(const char *component, const char *format, ...)
 extern "C" void logger_maintain_directory(const char *folder, const char *active_basename, const char *today_yyyymmdd)
 {
     if (Logger::logger_active == NULL) {
-        Logger cold("", NULL, NULL, false, NULL);
+        About coldAbout;
+
+        coldAbout.setName("");
+        Logger cold(coldAbout, NULL);
         cold.logger_maintain_directory(folder, active_basename, today_yyyymmdd);
         return;
     }
@@ -2113,9 +1606,12 @@ extern "C" void logger_print_help(void)
 
 extern "C" void logger_print_about(void)
 {
+    AboutCli page;
+
     if (Logger::logger_active == NULL) {
         g_printerr("Logger is constructed at the call site\n");
         exit(1);
     }
-    Logger::logger_active->logger_print_about();
+    page.bind(*Logger::logger_active);
+    page.printPage();
 }

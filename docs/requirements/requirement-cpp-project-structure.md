@@ -1,11 +1,11 @@
 **file**: docs/requirements/requirement-cpp-project-structure.md
 **Status**: Active
-**Updated**: 2026-11-10
+**Updated**: 2026-11-11
 **Philosophy**: CIAO v2.10.2 / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
 
 ## 1. Purpose
 
-This file owns the repository map. The files inside `src/main/cpp` are owned by `requirement-cpp-folder.md`. Product identity comes from `project.h`.
+This file owns the repository map. The files inside `src/main/cpp` are owned by `requirement-cpp-folder.md`. Product identity macros come from `project.h`. `About` loads those macros and is the runtime source of the name, the version, the paths, and the flags.
 
 ### 1.1 Human-facing
 
@@ -65,7 +65,7 @@ cpp-logger/
 └── .gradle/               # build output, not source
 ```
 
-`src/main/cpp` is the only source directory. There is no `src/main/c`. The four build files compile that directory. `build.sh` is the primary build. `build.xml`, `build.gradle`, and `meson.build` are the Ant, Gradle, and Meson builds. Their host and flag rules are `requirement-cpp-ant.md`, `requirement-cpp-gradle.md`, and `requirement-cpp-meson.md`.
+`src/main/cpp` is the only source directory. There is no `src/main/c`. `About` in that directory owns the name, the version, the paths, and the flags. It parses, binds `Logger`, routes one verb, and finishes. The four build files compile that directory. `build.sh` is the primary build. `build.xml`, `build.gradle`, and `meson.build` are the Ant, Gradle, and Meson builds. Their host and flag rules are `requirement-cpp-ant.md`, `requirement-cpp-gradle.md`, and `requirement-cpp-meson.md`.
 
 `tests/` holds `test-logger-folder.sh`, `test-log-verbs.sh`, `test-run-boundary.sh`, and `test-cpp-about.sh`. What those checks prove is `requirement-cpp-tests.md`.
 
@@ -100,5 +100,5 @@ Future editors must not commit `target/`, `build/`, or `.gradle/`, must not add 
 | `meson.build` | Meson build |
 | `.gitignore` | Excludes `target/`, `build/`, and `.gradle/` |
 
-**Last updated**: 2026-11-10
+**Last updated**: 2026-11-11
 **Owner**: Project structure

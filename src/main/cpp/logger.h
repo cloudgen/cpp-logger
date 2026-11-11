@@ -5,7 +5,8 @@
 //
 // Console output goes through logger_* .
 // printf, fprintf, and perror stay out of product code.
-// g_print and g_printerr are allowed inside logger.cpp only.
+// g_print and g_printerr are allowed inside logger.cpp for log lines.
+// aboutcli.cpp prints the about page. help.cpp prints usage. Those pages are not log lines.
 // 
 // !!! DO NOT REMOVE, SHORTEN, COMMENT OUT, OR BYPASS ANY PART OF THIS HEADER !!!
 // 
@@ -28,14 +29,19 @@
 // JSON mode forces quiet, so logger_set_quiet cannot turn quiet off while JSON is on.
 // Debug is captured once when main constructs Logger, from --debug or from DEBUG or debug set to show, true, or 1. There is no logger_set_debug.
 // logger_persistence_storage returns the log directory. It does not create that directory.
+// The about page does not print that return. Persistence storage is the application directory.
+// The log folder is that directory plus /log. Class AboutCli owns that page and binds Logger.
 // Two environments: root or sudo uses /var/<name>/log. Every other user uses $HOME/.app/<name>/log.
 // test, list, and show use --prefix <dir> for <dir>/var/<name>/log and --home <dir> for <dir>/.app/<name>/log.
 // list prints regular *.log names. show prints the file named by --log-datestamp.
 // Quiet, JSON, and a missing --verbose do not hide those prints. They are not log lines.
 // --log-datestamp names the file. test, list, and show ignore PREFIX and HOME.
 // A debug event names both paths. Debug mode shows stdout log lines, and not while quiet or JSON.
-// The class is Logger. main writes Logger logger(argc, argv); at the call site.
-// The logger_* names below forward to that object.
+// About owns the name, version, paths, and flags. Logger binds About.
+// Invocation, AboutCli, and Help bind Logger. Each is loggable.
+// Under debug mode, a public call and a major member change are one debug line each.
+// A reader command records that line on the console and does not create a directory.
+// The logger_* names below forward to the bound object. logger_print_about binds AboutCli to this logger.
 // =========================================================================
 
 typedef enum {
@@ -51,20 +57,27 @@ typedef time_t (*LoggerClock)(void);
 
 #ifdef __cplusplus
 
-// Purpose: one type owns quiet, the line, the dated file, retention, list, and show.
+#include "about.h"
+
+// Purpose: one type owns the line, the dated file, retention, list, and show.
+// It binds About for the name, the paths, and the flags.
 // logger_active is the object a C caller can reach. It is not a function that returns a Logger.
 class Logger {
+    friend class About;
+
 public:
     // C callers, including the retain driver, have no object parameter.
     static Logger *logger_active;
 
-    Logger(const char *logname, const char *logdir, const char *basedir, bool is_quiet, LoggerClock clock);
+    Logger(About &about, LoggerClock clock);
+    About &boundAbout(void);
 
     int logger_is_test_verb(void);
     void logger_finish_command(void);
     void logger_set_quiet(bool quiet);
     bool logger_get_quiet(void);
     bool logger_get_debug(void);
+    bool logger_get_json(void);
     const char *logger_persistence_storage(void);
     void logger_log(LoggerOutputLevel level, const char *component, const char *format, va_list ap);
     void logger_info(const char *component, const char *format, ...);
@@ -73,26 +86,14 @@ public:
     void logger_critical(const char *component, const char *format, ...);
     void logger_fatal(const char *component, const char *format, ...);
     void logger_debug(const char *component, const char *format, ...);
+    void logger_record_debug(const char *component, const char *message);
     void logger_maintain_directory(const char *folder, const char *active_basename, const char *today_yyyymmdd);
     void logger_print_help(void);
-    void logger_print_about(void);
 
 private:
-    bool logger_quiet_mode;
-    bool logger_json_mode;
-    bool debug_env_enabled;
-    int logger_verbose;
+    About *bound;
     char logger_folder[4096];
     char logger_log_path[4096];
-    int logger_purpose;
-    const char *logger_prefix_arg;
-    const char *logger_home_arg;
-    const char *logger_datestamp_arg;
-    int logger_saw_quiet;
-    int logger_saw_json;
-    int logger_saw_debug;
-    int logger_saw_verbose;
-    int logger_pending_page;
     int logger_retention_done;
     int logger_maintain_busy;
     char logger_name[256];
@@ -134,8 +135,6 @@ private:
     void logger_maintain_one(const char *folder, const char *active_basename, const GDate *today, const char *stamp);
     void logger_maintain_body(const char *folder, const char *active_basename, const char *today_yyyymmdd);
     void logger_append_log_file(LoggerOutputLevel level, const char *component, const char *message);
-    void logger_about_copy(char *out, size_t out_size, const char *value);
-    void logger_about_probe(char *out, size_t out_size, const char *path, const char *version);
 };
 
 #endif
@@ -161,7 +160,6 @@ private:
 extern "C" {
 #endif
 
-void logger_parse_invocation(int argc, char **argv, const char **logdir, const char **basedir, bool *quiet);
 void logger_log(LoggerOutputLevel level, const char *component, const char *format, va_list ap);
 
 // =========================================================================

@@ -29,7 +29,8 @@ The tree comes from cpp-template and cpp-gnome-template. The primary language is
 | Surface | What you open | What for |
 |---------|---------------|----------|
 | `src/main/cpp/*.cpp` | Product source | The rules below |
-| `src/main/cpp/logger.h` | Logging API | The only console output |
+| `src/main/cpp/logger.h` | Logging API | Log lines |
+| `src/main/cpp/about.h` | `About` | The name, the version, the paths, and the flags |
 | kebab-case | Hyphen spelling | Path tokens |
 | camel-case | Capital-letter spelling | C++ names |
 
@@ -50,12 +51,13 @@ This product follows **CIAO-Lite**:
 **Priority**: Safety, clarity of intention, and long-term maintainability always have higher priority than simplicity or minimalism.
 
 > **NO hard-coded URLs, paths, project names, filenames, or service-specific strings are allowed anywhere in the source code.**
-> All such values **MUST** come from `project.h` (Single Source of Truth) or from a requirement that names the value.
+> Identity macros live in `project.h`. `class About` loads those macros and is the runtime source of the name, the version, the paths, and the flags.
+> A product name or a product path in source comes from that object, or from a requirement that names the value.
 > Violating this rule breaks forking and CIAO-Lite.
 
 ## File types
 
-Membership of `src/main/cpp` is owned by `requirement-cpp-folder.md`. That requirement names the directory, the four ship-unit files, and the rule that a translation unit is `.cpp` unless it names a `.c` file. This file does not keep a second copy of that list.
+Membership of `src/main/cpp` is owned by `requirement-cpp-folder.md`. That requirement names the directory, the ship-unit files, and the rule that a translation unit is `.cpp` unless it names a `.c` file. This file does not keep a second copy of that list.
 
 ## Naming
 
@@ -75,6 +77,7 @@ Rules:
 3. A multi-word path segment uses kebab-case. Do not put a camel-case token or a snake_case token in that segment. The directories themselves are cpp-base-path and cpp-log-path, owned by `requirement-cpp-logger-folder.md`. This file does not choose them.
 4. Do not put a hyphen in a C++ identifier. Do not put a capital letter in a kebab-case token.
 5. Do not introduce `ciao_` or `CIAO_` names.
+6. `About` initializes the name and the version, parses the flags and then the command, binds `Logger` after those flags, routes one verb, and finishes. `Logger` records. It does not choose the verb. `Invocation`, `AboutCli`, and `Help` bind `Logger`. Under debug mode, a public call and a major member change are debug lines.
 
 ## Cross-file function visibility
 
@@ -86,9 +89,9 @@ There is no GTK signal callback in this product. Do not add `g_signal_connect` r
 
 ## C++ linkage (`extern "C"`)
 
-The logger header is included from C++. It declares `class Logger`. It keeps C linkage for the `logger_*` names, and those names forward to the object `main` constructed. `logger_log` takes `va_list` by value. The body in `src/main/cpp/logger.cpp` uses `va_copy` before `g_strdup_vprintf`. That body is the sample in `requirement-cpp-logger.md`.
+The logger header is included from C++. It declares `class Logger`. It keeps C linkage for the `logger_*` names, and those names forward to the bound logger. `logger_log` takes `va_list` by value. The body in `src/main/cpp/logger.cpp` uses `va_copy` before `g_strdup_vprintf`. That body is the sample in `requirement-cpp-logger.md`.
 
-Sample code (this project), from `src/main/cpp/logger.h`. The enumeration includes `LOGGER_LEVEL_CRITICAL`. The constructor is the five-argument form in `requirement-cpp-logger.md` §2.0. The C names take the component first.
+Sample code (this project), from `src/main/cpp/logger.h`. The enumeration includes `LOGGER_LEVEL_CRITICAL`. The constructor binds `About` and takes the clock. The C names take the component first.
 
 ```cpp
 typedef enum {
@@ -100,9 +103,8 @@ typedef enum {
     LOGGER_LEVEL_DEBUG
 } LoggerOutputLevel;
 
-Logger(const char *logname, const char *logdir, const char *basedir, bool is_quiet, LoggerClock clock);
+Logger(About &about, LoggerClock clock);
 
-void logger_parse_invocation(int argc, char **argv, const char **logdir, const char **basedir, bool *quiet);
 void logger_log(LoggerOutputLevel level, const char *component, const char *format, va_list ap);
 void logger_info(const char *component, const char *format, ...);
 void logger_warn(const char *component, const char *format, ...);
@@ -131,19 +133,19 @@ Gradle task banners are `requirement-cpp-gradle-coding-style.md`. Ant target ban
 
 - Product code calls `logger_info()`, `logger_warn()`, `logger_error()`, `logger_critical()`, `logger_fatal()`, and `logger_debug()` only for lines. The level is the enumeration in `requirement-cpp-logger.md`.
 - Quiet mode is `logger_set_quiet(bool)` and `logger_get_quiet()`. Debug is `logger_get_debug()`. There is no `logger_set_debug`.
-- `printf`, `fprintf`, `g_print`, and `perror` are allowed inside `logger.cpp` only.
+- `printf`, `fprintf`, and `perror` stay out of product code. `g_print` and `g_printerr` are allowed in `logger.cpp` for log lines, in `help.cpp` for the usage page, in `aboutcli.cpp` for the about page, and in `about.cpp` for a rejected command. The about page and the usage page are not log lines.
 - The human line is `requirement-cpp-logger.md`. Quiet is `requirement-cpp-output.md`. JSON mode is `requirement-cpp-json.md`. `DEBUG` is `requirement-cpp-debug-mode.md`. Flag names are `requirement-cpp-parameters.md`.
 
 ## Configuration
 
 - **NO hardcoded URLs, paths, project names, filenames, or behaviors in source code.**
-- Identity values come from `project.h`.
+- Identity values come from `project.h` through `About`.
 
 ## File organization
 
 - Which files sit in `src/main/cpp` is `requirement-cpp-folder.md`.
 - A header and its translation unit stay paired.
-- `project.h` is the single source of truth for basic metadata only.
+- `project.h` holds the compile-time macros. `About` is the runtime source of the name, the version, the paths, and the flags.
 
 ---
 
